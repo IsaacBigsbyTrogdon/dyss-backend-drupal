@@ -1,0 +1,35 @@
+<?php
+
+/**
+ * @file
+ * Contains i_importer.module.
+ */
+
+use Drupal\Core\Routing\RouteMatchInterface;
+
+/**
+ * Implements hook_help().
+ */
+function i_importer_help($route_name, RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    // Main module help for the i_importer module.
+    case 'help.page.i_importer':
+      $output = '';
+      $output .= '<h3>' . t('About') . '</h3>';
+      $output .= '<p>' . t('Imports content from external services.') . '</p>';
+      return $output;
+
+    default:
+  }
+}
+
+/**
+ * Implements hook_theme().
+ */
+function i_importer_theme() {
+  return [
+    'i_importer' => [
+      'render element' => 'children',
+    ],
+  ];
+}

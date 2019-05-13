@@ -1,0 +1,14 @@
+{
+  "name": "drupal/i_importer",
+  "type": "drupal-module",
+  "description": "Imports content from external services.",
+  "keywords": ["Drupal"],
+  "license": "GPL-2.0+",
+  "homepage": "https://www.drupal.org/project/i_importer",
+  "minimum-stability": "dev",
+  "support": {
+    "issues": "https://www.drupal.org/project/issues/i_importer",
+    "source": "http://cgit.drupalcode.org/i_importer"
+  },
+  "require": { }
+}

@@ -1,0 +1,5 @@
+name: 'i_importer'
+type: module
+description: 'Imports content from external services.'
+core: 8.x
+package: 'Custom'
