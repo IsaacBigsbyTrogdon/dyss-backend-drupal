@@ -1,0 +1,6 @@
+services:
+  i_importer.utility:
+    class: Drupal\i_importer\Service\ImporterService
+    arguments: ['@database', '@messenger', '@current_user', '@entity_type.manager']
+    tags:
+      - {name: 'test_account'}

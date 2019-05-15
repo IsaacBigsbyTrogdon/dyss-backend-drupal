@@ -3,39 +3,65 @@
     "description": "Project template for Drupal 8 projects with composer",
     "type": "project",
     "license": "GPL-2.0-or-later",
-    "authors": [
+    "authors": [{
+        "name": "",
+        "role": ""
+    }],
+    "repositories": [{
+        "type": "composer",
+        "url": "https://packages.drupal.org/8"
+    },
         {
-            "name": "",
-            "role": ""
-        }
-    ],
-    "repositories": [
+            "type": "git",
+            "url": "https://github.com/loomgmbh/module-loom_preprocess.git"
+        },
         {
-            "type": "composer",
-            "url": "https://packages.drupal.org/8"
+            "type": "git",
+            "url": "https://github.com/loomgmbh/module-loom_clean_deploy.git"
+        },
+        {
+            "type": "git",
+            "url": "https://github.com/loomgmbh/module-loom_config.git"
+        },
+        {
+            "type": "git",
+            "url": "https://github.com/loomgmbh/module-loom_import.git"
+        }, {
+            "type": "package",
+            "package": {
+                "name": "loomgmbh/loom_cover_image",
+                "version": "8.1.1.0",
+                "type": "drupal-module",
+                "source": {
+                    "url": "https://github.com/loomgmbh/module-loom_cover_image.git",
+                    "type": "git",
+                    "reference": "8.1.1.0"
+                },
+                "require": {
+                    "composer/installers": "~1.0"
+                }
+            }
         }
     ],
     "require": {
-        "php": ">=5.6",
         "composer/installers": "^1.2",
-        "cweagans/composer-patches": "^1.6.5",
-        "drupal-composer/drupal-scaffold": "^2.5",
+        "cweagans/composer-patches": "^1.6",
+        "drupal-composer/drupal-scaffold": "^2.2",
         "drupal/admin_toolbar": "^1.26",
         "drupal/audiofield": "^1.9",
         "drupal/console": "^1.0.2",
         "drupal/core": "^8.7.0",
+        "drupal/entity_clone": "^1.0@beta",
         "drupal/permissions_filter": "^1.0",
         "drupal/recaptcha": "^2.4",
         "drupal/select2": "^1.1",
-        "drush/drush": "^9.0.0",
+        "mremi/url-shortener": "^2.1",
         "vlucas/phpdotenv": "^2.4",
+        "webflo/drupal-core-require-dev": "8.5.11",
         "webflo/drupal-finder": "^1.0.0",
-        "webmozart/path-util": "^2.3",
-        "zaporylie/composer-drupal-optimizations": "^1.0"
+        "webmozart/path-util": "^2.3"
     },
-    "require-dev": {
-        "webflo/drupal-core-require-dev": "^8.7.0"
-    },
+    "require-dev": {},
     "conflict": {
         "drupal/drupal": "*"
     },
@@ -48,9 +74,12 @@
         "classmap": [
             "scripts/composer/ScriptHandler.php"
         ],
-        "files": ["load.environment.php"]
+        "files": [
+            "load.environment.php"
+        ]
     },
     "scripts": {
+        "drupal-scaffold": "DrupalComposer\\DrupalScaffold\\Plugin::scaffold",
         "pre-install-cmd": [
             "DrupalProject\\composer\\ScriptHandler::checkComposerVersion"
         ],
@@ -65,23 +94,25 @@
         ]
     },
     "extra": {
-        "composer-exit-on-patch-failure": true,
-        "patchLevel": {
-            "drupal/core": "-p2"
-        },
         "installer-paths": {
-            "web/core": ["type:drupal-core"],
-            "web/libraries/{$name}": ["type:drupal-library"],
-            "web/modules/contrib/{$name}": ["type:drupal-module"],
-            "web/profiles/contrib/{$name}": ["type:drupal-profile"],
-            "web/themes/contrib/{$name}": ["type:drupal-theme"],
-            "drush/Commands/{$name}": ["type:drupal-drush"]
-        },
-        "drupal-scaffold": {
-            "initial": {
-                ".editorconfig": "../.editorconfig",
-                ".gitattributes": "../.gitattributes"
-            }
+            "web/core": [
+                "type:drupal-core"
+            ],
+            "web/libraries/{$name}": [
+                "type:drupal-library"
+            ],
+            "web/modules/contrib/{$name}": [
+                "type:drupal-module"
+            ],
+            "web/profiles/contrib/{$name}": [
+                "type:drupal-profile"
+            ],
+            "web/themes/contrib/{$name}": [
+                "type:drupal-theme"
+            ],
+            "drush/contrib/{$name}": [
+                "type:drupal-drush"
+            ]
         }
     }
 }
