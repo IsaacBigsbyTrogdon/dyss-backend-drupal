@@ -1,0 +1,116 @@
+<?php
+
+/**
+ * @file
+ * Contains ibt_api.module.
+ */
+
+use Drupal\Core\Routing\RouteMatchInterface;
+
+/**
+ * Implements hook_help().
+ */
+function ibt_api_help($route_name, RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    // Main module help for the ibt_api module.
+    case 'help.page.ibt_api':
+      $output = '';
+      $output .= '<h3>' . t('About') . '</h3>';
+      $output .= '<p>' . t('My Awesome Module') . '</p>';
+      return $output;
+
+    default:
+  }
+}
+
+/**
+ * Implements hook_theme().
+ */
+function ibt_api_theme() {
+  return [
+    'ibt_api' => [
+      'render element' => 'children',
+    ],
+  ];
+}
+
+use Drupal\Core\Database\Database;
+use Drupal\ibt_api\Connection\MixcloudConnection;
+
+/**
+ * Implements hook_cron().
+ */
+function ibt_api_cron() {
+  $state     = \Drupal::state();
+  $locked    = $state->get('ibt_api.import_semaphore', FALSE);
+  $last_time = $state->get('ibt_api.import_last', FALSE);
+
+  if (!$locked && $last_time) {
+    $database   = Database::getConnection();
+    $ibt_api     = new MixcloudConnection();
+    $queue      = \Drupal::queue('ibt_api_import_worker');
+    $api_limit  = $state->get('ibt_api.cron_download_limit', 100);
+    $save_limit = $state->get('ibt_api.cron_process_limit', 10);
+    $data       = NULL;
+    $new_data   = [];
+
+    // Pull all data into an array
+    // TODO: limit checks in case all of the thousands of Teas have new
+    // revisions
+    do {
+      // If there is have a 'next' URL returned, use that one for simplicity
+      $next_page = NULL;
+      if (isset($data->pagination->next)) {
+        $next_page = $data->pagination->next;
+      }
+      $data = $ibt_api->queryEndpoint('MixCloudDetailsFull', [
+        'limit'      => $api_limit,
+        'start_time' => $last_time,
+        'next_page'  => isset($next_page) ? $next_page : NULL,
+      ]);
+      $new_data = array_merge($new_data, $data->response_data);
+    } while (isset($data->pagination->next));
+
+    $gids      = [];
+    $new_count = count($new_data);
+    foreach ($new_data as $index => $tea_data) {
+      if (empty($tea_data->gid)) {
+        \Drupal::logger('ibt_api')->warning(t('Empty GID at progress @p for the data:<br /><pre>@v</pre>', [
+          '@v' => print_r($tea_data, TRUE),
+          '@p' => $index,
+        ]));
+        continue;
+      }
+      elseif (!is_numeric($tea_data->gid)) {
+        \Drupal::logger('ibt_api')->warning(t('Non-numeric GID at progress @p for the data:<br /><pre>@v</pre>', [
+          '@v' => print_r($tea_data, TRUE),
+          '@p' => $index,
+        ]));
+        continue;
+      }
+      // Save the data to the local database
+      $database->merge('ibt_api_tea_staging')
+        ->key(['gid' => (int) $tea_data->gid])
+        ->insertFields([
+          'gid'  => (int) $tea_data->gid,
+          'data' => serialize($tea_data),
+        ])
+        ->updateFields(['data' => serialize($tea_data)])
+        ->execute()
+      ;
+      $gids[] = (int) $tea_data->gid;
+      // If enough Teas have been stored or the last one just was strored,
+      // then queue up a worker to process them and reset the IDs array
+      if (count($gids) == $save_limit || $index + 1 == $new_count) {
+        $queue->createItem(['gids' => $gids]);
+        $gids = [];
+      }
+    }
+    // Store the timestamp in state
+    $last_time = \Drupal::time()->getRequestTime();
+    \Drupal::state()->set('ibt_api.import_last', $last_time);
+  }
+  elseif ($locked) {
+    \Drupal::logger('ibt_api')->warning(t('mixcloudApi Cron did not run because it is locked.'));
+  }
+}

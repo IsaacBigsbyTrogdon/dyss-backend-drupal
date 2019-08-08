@@ -1,0 +1,51 @@
+
+
+<?php
+
+use Drupal\Core\Database\Database;
+
+/**
+ * Implements hook_schema().
+ */
+function ibt_api_schema() {
+  $schema['mixcloud_previous'] = [
+    'description' => 'Preserves the raw data downloaded from the mixcloudApi API for comparison.',
+    'fields'      => [
+      'gid' => [
+        'description' => 'The primary unique ID for mixcloudApi Tea data.',
+        'type'        => 'int',
+        'size'        => 'big',
+        'not null'    => TRUE,
+        'default'     => 0,
+      ],
+      'data' => [
+        'description' => 'The full data of the Tea.',
+        'type'        => 'blob',
+        'size'        => 'big',
+      ],
+    ],
+    'primary key' => ['gid'],
+  ];
+
+  $schema['ibt_api_staging'] = [
+    'description' => 'Stores the raw data downloaded from the mixcloudApi API.',
+    'fields'      => [
+      'gid' => [
+        'description' => 'The primary unique ID for mixcloudApi Tea data.',
+        'type'        => 'int',
+        'size'        => 'big',
+        'not null'    => TRUE,
+        'default'     => 0,
+      ],
+      'data' => [
+        'description' => 'The full data of the Tea.',
+        'type'        => 'blob',
+        'size'        => 'big',
+      ],
+    ],
+    'primary key' => ['gid'],
+  ];
+
+  return $schema;
+}
+

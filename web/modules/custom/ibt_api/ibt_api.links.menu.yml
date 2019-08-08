@@ -1,0 +1,15 @@
+ibt_api.overview:
+  title: mixcloudApi API Status
+  route_name: ibt_api.overview
+  description: 'Configuration & information for the mixcloudApi API integration.'
+  parent: system.admin_config_services
+
+ibt_api.import:
+  title: Api Import
+  route_name: ibt_api.import
+  parent: ibt_api.overview
+
+ibt_api.configuration:
+  title: Configure
+  route_name: ibt_api.configuration
+  parent: ibt_api.overview

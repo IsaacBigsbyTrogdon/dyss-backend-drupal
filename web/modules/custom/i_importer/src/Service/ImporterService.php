@@ -27,6 +27,10 @@ class ImporterService {
 
   private $eventApi = NULL;
 
+  private $mixCloudFields = [
+
+  ];
+
   /**
    * Constructor.
    *
@@ -56,9 +60,7 @@ class ImporterService {
       ],
       'query' => [
         'format' => 'json',
-//        'version' => 1,
       ],
-//      'verify' => FALSE,
     ]);
   }
 
@@ -79,9 +81,8 @@ class ImporterService {
     $data = [];
     foreach ($endpoints as $endpoint) {
       if (!isset($endpoint['uri'])) continue;
-      $ep =$endpoint['uri'];
-      $offset = 0;
-      $limit = 20;
+      $ep = $endpoint['uri'];
+      $offset = 0; $limit = 20;
       $params = ['query' => ['offset' => $offset, 'limit' => $limit]];
       $import = TRUE;
       while ($import === TRUE) {
@@ -99,8 +100,16 @@ class ImporterService {
     if (!empty($data)) $this->process($data);
   }
 
-  public function process($data) {
+  private $ignore = [
+    'tags', 'user', 'pictures', 'updated_time', 'comment_count',
+  ];
+
+  private function process($array) {
     $t=1;
+    foreach ($array as $key => $value) {
+//      if ($)
+    }
+
   }
 
   /**

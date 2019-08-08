@@ -1,0 +1,29 @@
+ibt_api.overview:
+  path: '/admin/config/services/api'
+  defaults:
+    _controller: '\Drupal\ibt_api\Controller\mixcloudApiOverviewController::showOverview'
+    _title: 'mixcloudApi API Status Report'
+  requirements:
+    _permission: 'ibt_api tea import'
+  options:
+    _admin_route: TRUE
+
+ibt_api.import:
+  path: '/admin/config/services/api/import'
+  defaults:
+    _form: '\Drupal\ibt_api\Form\mixcloudApiImportForm'
+    _title: 'mixcloudApi API: Api Import'
+  requirements:
+    _permission: 'ibt_api mixcloud import'
+  options:
+    _admin_route: TRUE
+
+ibt_api.configuration:
+  path: '/admin/config/services/api/config'
+  defaults:
+    _form: '\Drupal\ibt_api\Form\mixcloudApiConfigurationForm'
+    _title: 'mixcloudApi API Configuration'
+  requirements:
+    _permission: 'ibt_api admin config'
+  options:
+    _admin_route: TRUE

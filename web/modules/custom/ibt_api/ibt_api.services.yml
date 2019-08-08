@@ -1,0 +1,8 @@
+services:
+  ibt_api.mixcloud.client:
+    class: Drupal\ibt_api\Clients\MixcloudClient
+    arguments:
+      - '@http_client_factory'
+  ibt_api.default:
+    class: Drupal\ibt_api\DefaultService
+    arguments: ['@database', '@current_route_match', '@current_user', '@entity_type.manager', '@datetime.time']

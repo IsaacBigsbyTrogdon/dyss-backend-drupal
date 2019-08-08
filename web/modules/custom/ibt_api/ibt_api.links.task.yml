@@ -1,0 +1,14 @@
+ibt_api.overview:
+  title: API Status
+  route_name: ibt_api.overview
+  base_route: ibt_api.overview
+
+ibt_api.import:
+  title: Api Import
+  route_name: ibt_api.import
+  base_route: ibt_api.overview
+
+ibt_api.configuration:
+  title: Configure
+  route_name: ibt_api.configuration
+  base_route: ibt_api.overview
