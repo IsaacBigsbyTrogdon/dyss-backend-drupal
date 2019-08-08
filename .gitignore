@@ -22,3 +22,6 @@
 
 # Ignore .env files as they are personal
 /.env
+modules/contrib
+node_modules
+/web/sites/default/settings.db.php
