@@ -35,7 +35,7 @@ function ibt_api_theme() {
 }
 
 use Drupal\Core\Database\Database;
-use Drupal\ibt_api\Connection\MixcloudConnection;
+use Drupal\ibt_api\Connection\ApiConnection;
 
 /**
  * Implements hook_cron().
@@ -47,7 +47,7 @@ function ibt_api_cron() {
 
   if (!$locked && $last_time) {
     $database   = Database::getConnection();
-    $ibt_api     = new MixcloudConnection();
+    $ibt_api     = new ApiConnection();
     $queue      = \Drupal::queue('ibt_api_import_worker');
     $api_limit  = $state->get('ibt_api.cron_download_limit', 100);
     $save_limit = $state->get('ibt_api.cron_process_limit', 10);
@@ -89,7 +89,7 @@ function ibt_api_cron() {
         continue;
       }
       // Save the data to the local database
-      $database->merge('ibt_api_tea_staging')
+      $database->merge('ibt_api_staging')
         ->key(['gid' => (int) $tea_data->gid])
         ->insertFields([
           'gid'  => (int) $tea_data->gid,

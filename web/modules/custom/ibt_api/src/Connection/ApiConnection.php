@@ -12,7 +12,7 @@ use GuzzleHttp\Psr7\Request as GuzzleRequest;
  *
  * @package Drupal\ibt_api
  */
-class MixcloudConnection {
+class ApiConnection {
 
   /**
    * @var string mixcloudApi API version to use
@@ -44,7 +44,7 @@ class MixcloudConnection {
   }
 
   /**
-   * Get configuration or state setting for this mixcloudApi integration module.
+   * Get configuration or state setting for this integration module.
    *
    * @param string $name this module's config or state.
    *
@@ -93,12 +93,11 @@ class MixcloudConnection {
   }
 
   /**
-   * Call the mixcloudApi API endpoint.
+   * @param $endpoint
+   * @param array $options
    *
-   * @param string $endpoint
-   * @param array  $options
-   *
-   * @return \Psr\Http\Message\ResponseInterface
+   * @return mixed|\Psr\Http\Message\ResponseInterface
+   * @throws \GuzzleHttp\Exception\GuzzleException
    */
   public function callEndpoint($endpoint, $options = []) {
     $headers = $this->generateHeaders($this->requestUri($endpoint));
@@ -133,7 +132,7 @@ class MixcloudConnection {
    * @return \Drupal\Core\Url
    */
   protected function requestUrl($endpoint, $options = []) {
-    $url         = $this->getConfig('url');
+    $url         = $this->getConfig($endpoint);
     $public_key  = $this->getConfig('public_key');
     $territory   = $this->getConfig('territory');
     $request_uri = $this->requestUri($endpoint);
@@ -142,21 +141,21 @@ class MixcloudConnection {
     $start_time  = isset($options['start_time']) ? $options['start_time'] : NULL;
     $end_time    = isset($options['end_time']) ? $options['end_time'] : NULL;
     $url_query   = [
-      'api_key'   => $public_key,
+//      'api_key'   => $public_key,
       'limit'     => $limit,
       'offset'    => $offset,
-      'territory' => $territory,
+//      'territory' => $territory,
     ];
 
-    if (isset($start_time)) {
-      $start_date             = new \DateTime('@' . $start_time);
-      $url_query['startdate'] = $start_date->format('Y-m-d');
-    }
-
-    if (isset($end_time)) {
-      $end_date             = new \DateTime('@' . $end_time);
-      $url_query['enddate'] = $end_date->format('Y-m-d');
-    }
+//    if (isset($start_time)) {
+//      $start_date             = new \DateTime('@' . $start_time);
+//      $url_query['startdate'] = $start_date->format('Y-m-d');
+//    }
+//
+//    if (isset($end_time)) {
+//      $end_date             = new \DateTime('@' . $end_time);
+//      $url_query['enddate'] = $end_date->format('Y-m-d');
+//    }
 
     if (!empty($options['url_query']) && is_array($options['url_query'])) {
       $url_query = array_merge($url_query, $options['url_query']);

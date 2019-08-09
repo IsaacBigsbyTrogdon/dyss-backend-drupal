@@ -4,7 +4,7 @@ namespace Drupal\ibt_api\Plugin\QueueWorker;
 
 use Drupal\Core\Queue\QueueWorkerBase;
 use Drupal\Core\Database\Database;
-use Drupal\ibt_api\Connection\MixcloudConnection;
+use Drupal\ibt_api\Connection\ApiConnection;
 //use Drupal\ibt_api\mixcloudApi;
 
 /**
@@ -16,7 +16,7 @@ use Drupal\ibt_api\Connection\MixcloudConnection;
  *   cron = {"time" = 60}
  * )
  */
-class mixCloudApiImportWorker extends QueueWorkerBase {
+class ApiImportWorker extends QueueWorkerBase {
 
   /**
    * {@inheritdoc}
@@ -30,7 +30,7 @@ class mixCloudApiImportWorker extends QueueWorkerBase {
       return;
     }
 
-    $query = $connection->select('ibt_api_tea_staging', 'its');
+    $query = $connection->select('ibt_api_staging', 'its');
     $query->fields('its');
     $query->condition('its.gid', $gids, 'IN');
     $results = $query->execute();
@@ -40,7 +40,7 @@ class mixCloudApiImportWorker extends QueueWorkerBase {
       $tea_data = unserialize($row->data);
 
       try {
-        $tea = new MixcloudConnection($tea_data);
+        $tea = new ApiConnection($tea_data);
 //        $tea = new mixcloudApi($tea_data);
         $tea->processTea(); // Custom data-to-node processing
 
@@ -53,7 +53,7 @@ class mixCloudApiImportWorker extends QueueWorkerBase {
           ->updateFields(['data' => $row->data])
           ->execute();
 
-        $query = $connection->delete('ibt_api_tea_staging');
+        $query = $connection->delete('ibt_api_staging');
         $query->condition('gid', $gid);
         $query->execute();
       } catch (\Exception $e) {

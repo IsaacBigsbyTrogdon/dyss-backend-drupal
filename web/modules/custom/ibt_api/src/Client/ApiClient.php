@@ -4,7 +4,7 @@ namespace Drupal\ibt_api\Clients;
 
 use Drupal\Component\Serialization\Json;
 
-class MixcloudClient {
+class ApiClient {
 
   /**
    * @var \GuzzleHttp\Client

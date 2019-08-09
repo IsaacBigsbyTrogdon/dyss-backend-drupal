@@ -4,17 +4,43 @@ namespace Drupal\ibt_api\Form;
 
 use Drupal\Core\Database\Database;
 use Drupal\Core\Form\FormBase;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\ibt_api\Connection\MixcloudConnection;
-//use Drupal\ibt_api\mixcloudApi;
+use Drupal\ibt_api\Connection\ApiConnection;
+use Drupal\ibt_api\UtilityServiceInterface;
 
 /**
  * Defines a form that triggers batch operations to download and process Tea
- * data from the mixcloudApi API.
+ * data from the API.
  * Batch operations are included in this class as methods.
  */
-class mixCloudApiImportForm extends FormBase {
+class ApiImportForm extends FormBase {
+
+  /**
+   * Drupal\ibt_api\UtilityServiceInterface definition.
+   *
+   * @var \Drupal\ibt_api\UtilityServiceInterface
+   */
+  protected $util;
+
+  /**
+   * @param \Drupal\ibt_api\UtilityServiceInterface
+   */
+  public function __construct(
+    UtilityServiceInterface $ibt_api_utility
+  ) {
+    $this->util = $ibt_api_utility;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container) {
+    return new static(
+      $container->get('ibt_api.utility')
+    );
+  }
 
   /**
    * {@inheritdoc}
@@ -27,12 +53,12 @@ class mixCloudApiImportForm extends FormBase {
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state, Request $request = NULL) {
-    $connection = new MixcloudConnection();
-    $data       = $connection->queryEndpoint('MixCloudDetailsFull', [
+    $connection = new ApiConnection();
+    $data       = $connection->queryEndpoint('endpoint.overview', [
 //      'limit'     => 1,
-      'url_query' => [
-        'sort' => 'gid asc',
-      ]
+//      'url_query' => [
+//        'sort' => 'gid asc',
+//      ]
     ]);
 
 //    if (empty($data->pagination->total_count)) {
@@ -45,24 +71,23 @@ class mixCloudApiImportForm extends FormBase {
     $t=1;
     $form['count_display'] = [
       '#type'  => 'item',
-      '#title' => t('Item Found'),
+      '#title' => t('Items Found'),
       'markup'  => [
-        '#markup' => '$data->pagination->total_count',
-//        '#markup' => $data->pagination->total_count,
+        '#markup' => $data->cloudcast_count ?? 'Unknown',
       ]
     ];
 
     $form['count'] = [
       '#type'  => 'value',
-      '#value' => '$data->pagination->total_count',
-//      '#value' => $data->pagination->total_count,
+      '#value' => $data->cloudcast_count ?? 0,
     ];
+    $enabled = isset($data->cloudcast_count);
 
     $nums   = [
       5, 10, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 900,
     ];
     $limits = array_combine($nums, $nums);
-    $desc   = 'This is the number of Teas the API should return each call ' .
+    $desc   = 'This is the number of items the API should return each call ' .
       'as the operation pages through the data.';
     $form['download_limit'] = [
       '#type'          => 'select',
@@ -72,7 +97,7 @@ class mixCloudApiImportForm extends FormBase {
       '#description'   => t($desc),
     ];
     $desc = 'This is the number of items to analyze and save to Drupal as ' .
-      'the operation pages through the data.<br />This is labor intensive so ' .
+      'the operation pages through the data. This is labor intensive so ' .
       'usually a lower number than the above throttle';
     $form['process_limit'] = [
       '#type'          => 'select',
@@ -87,7 +112,7 @@ class mixCloudApiImportForm extends FormBase {
     $form['actions']['submit'] = [
       '#type'     => 'submit',
       '#value'    => t('Start import'),
-//      '#disabled' => empty($data->pagination->total_count),
+      '#disabled' => !$enabled,
     ];
 
     return $form;
@@ -99,11 +124,11 @@ class mixCloudApiImportForm extends FormBase {
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $connection = Database::getConnection();
     $queue      = \Drupal::queue('ibt_api_import_worker');
-    $class      = 'Drupal\ibt_api\Form\mixCloudApiImportForm';
+    $class      = 'Drupal\ibt_api\Form\ApiImportForm';
     $batch      = [
-      'title'      => t('Downloading & Processing mixcloudApi Tea Data'),
+      'title'      => t('Downloading & Processing Api Data'),
       'operations' => [
-        [ // Operation to download all of the teas
+        [ // Operation to download all of the items
           [$class, 'downloadData'], // Static method notation
           [
             $form_state->getValue('count', 0),
@@ -111,9 +136,10 @@ class mixCloudApiImportForm extends FormBase {
           ],
         ],
         [ // Operation to process & save the tea data
-          [$class, 'processPlaylist'], // Static method notation
+          [$class, 'processItems'], // Static method notation
           [
             $form_state->getValue('process_limit', 0),
+//            $this->util,
           ],
         ],
       ],
@@ -128,12 +154,12 @@ class mixCloudApiImportForm extends FormBase {
       $queue->deleteItem($worker);
     }
     // Clear out the staging table for fresh, whole data
-    $connection->truncate('ibt_api_tea_staging')->execute();
+    $connection->truncate('ibt_api_staging')->execute();
   }
 
   /**
-   * Batch operation to download all of the Items data from mixcloudApi and store
-   * it in the ibt_api_tea_staging database table.
+   * Batch operation to download all of the Items data from Api and store
+   * it in the ibt_api_staging database table.
    *
    * @param int   $api_count
    * @param array $context
@@ -150,28 +176,47 @@ class mixCloudApiImportForm extends FormBase {
     }
     $sandbox = &$context['sandbox'];
 
-
-    $mixcloud = new MixcloudConnection();
-    $data   = $mixcloud->queryEndpoint('MixCloudDetailsFull', [
+    $iguana = new ApiConnection();
+    $data   = $iguana->queryEndpoint('endpoint.content', [
       'limit'     => $sandbox['limit'],
       'url_query' => [
         'offset' => (string) $sandbox['progress'],
         'sort'   => 'gid asc',
       ],
     ]);
+    if (empty($data->data)) {
+      # no results.
+    }
+    else {
+      foreach ($data->data as $data) {
+        if (empty($data->slug)) {
+          $msg = t('Empty Slug at progress @p for the data:', [
+            '@p' => $sandbox['progress'],
+          ]);
+          $msg .= '<br /><pre>' . print_r($data, TRUE) . '</pre>';
+          \Drupal::logger('ibt_api')->warning($msg);
+          $sandbox['progress']++;
+          continue;
+        }
+        // Store the data
+        $database->merge('ibt_api_staging')
+          ->key('slug')
+          ->insertFields([
+            'slug'  => $data->slug,
+            'data' => serialize($data),
+          ])
+          ->updateFields(['data' => serialize($data)])
+          ->execute()
+        ;
+        $context['results']['downloaded']++;
+        $sandbox['progress']++;
+        $context['message'] = '<h2>' . t('Downloading API data...') . '</h2>';
+        $context['message'] .= t('Queried @c of @t entries.', [
+          '@c' => $sandbox['progress'],
+          '@t' => $sandbox['max'],
+        ]);
+      }
 
-    $t=1;
-    foreach ($data->response_data as $tea_data) {
-      // Check for empty or non-numeric GIDs
-
-      $context['results']['downloaded']++;
-      $sandbox['progress']++;
-      // Build a message so this isn't entirely boring for admins
-      $context['message'] = '<h2>' . t('Downloading API data...') . '</h2>';
-      $context['message'] .= t('Queried @c of @t Tea entries.', [
-        '@c' => $sandbox['progress'],
-        '@t' => $sandbox['max'],
-      ]);
     }
 
     if ($sandbox['max']) {
@@ -179,28 +224,34 @@ class mixCloudApiImportForm extends FormBase {
     }
     // If completely done downloading, set the last time it was done, so that
     // cron can keep the data up to date with smaller queries
-    if ($context['finished'] >= 1) {
-      $last_time = \Drupal::time()->getRequestTime();
-      \Drupal::state()->set('ibt_api.import_last', $last_time);
-    }
+//    if ($context['finished'] >= 1) {
+//      $last_time = \Drupal::time()->getRequestTime();
+//      \Drupal::state()->set('iguana.tea_import_last', $last_time);
+//    }
+
   }
 
   /**
-   * Batch operation to extra data from the ibt_api_tea_staging table and
+   * Batch operation to extra data from the ibt_api_staging table and
    * save it to a new node or one found via GID.
+   * @param $limit
+   * @param $context
    *
-   * @param array $context
+   * @throws \Exception
    */
-  public static function processPlaylist($limit, &$context) {
+  public static function processItems($limit, &$context) {
     $connection = Database::getConnection();
+    /** @var \Drupal\ibt_api\UtilityService $utility */
+    $utility = \Drupal::service('ibt_api.utility');
+    $channel = $utility->getTerm('Dyssembler Radio on Mixcloud');
     if (!isset($context['sandbox']['progress'])) {
       $context['sandbox'] = [
         'progress' => 0,
         'limit'    => $limit,
-        'max'      => (int)$connection->select('ibt_api_tea_staging', 'its')
+        'max'      => (int)$connection->select('ibt_api_staging', 'its')
           ->countQuery()->execute()->fetchField(),
       ];
-      $context['results']['teas'] = 0;
+      $context['results']['items'] = 0;
       $context['results']['nodes']  = 0;
       // Count new versus existing
       $context['results']['nodes_inserted'] = 0;
@@ -208,34 +259,37 @@ class mixCloudApiImportForm extends FormBase {
     }
     $sandbox = &$context['sandbox'];
 
-    $query = $connection->select('ibt_api_tea_staging', 'its')
+    $query = $connection->select('ibt_api_staging', 'its')
       ->fields('its')
       ->range(0, $sandbox['limit'])
     ;
     $results = $query->execute();
 
+    $t=1;
     foreach ($results as $row) {
-      $gid        = (int) $row->gid;
-      $tea_data   = unserialize($row->data);
-      $tea        = new mixcloudApi($tea_data);
-      $node_saved = $tea->processTea(); // Custom data-to-node processing
-
-      $connection->merge('mixcloud_previous')
-        ->key(['gid' => $gid])
+      $slug        = $row->slug;
+      $data   = unserialize($row->data);
+      $utility->processApiData('node', 'audio', $data, $channel);
+      $t=1;
+//      $node        = new mixcloudApi($data);
+//      $node_saved = $tea->processTea(); // Custom data-to-node processing
+      $node_saved = TRUE;
+      $connection->merge('ibt_api_previous')
+        ->key('slug')
         ->insertFields([
-          'gid'  => $gid,
+          'slug'  => $slug,
           'data' => $row->data,
         ])
         ->updateFields(['data' => $row->data])
         ->execute()
       ;
 
-      $query = $connection->delete('ibt_api_tea_staging');
-      $query->condition('gid', $gid);
+      $query = $connection->delete('ibt_api_staging');
+      $query->condition('slug', $slug);
       $query->execute();
 
       $sandbox['progress']++;
-      $context['results']['teas']++;
+      $context['results']['items']++;
       // Tally only the nodes saved
       if ($node_saved) {
         $context['results']['nodes']++;
@@ -252,9 +306,9 @@ class mixCloudApiImportForm extends FormBase {
       ]);
       $msg .= '<br />';
       $msg .= t('Last tea: %t %g %n', [
-        '%t' => $tea->getTitle(),
-        '%g' => '(GID:' . $gid . ')',
-        '%n' => '(node:' . $tea->getNode()->id() . ')',
+//        '%t' => $tea->getTitle(),
+//        '%g' => '(GID:' . $gid . ')',
+//        '%n' => '(node:' . $tea->getNode()->id() . ')',
       ]);
       $context['message'] = $msg;
     }
@@ -285,28 +339,28 @@ class mixCloudApiImportForm extends FormBase {
       $downloaded = \Drupal::translation()->formatPlural(
         $results['downloaded'],
         'One tea downloaded.',
-        '@count teas downloaded.'
+        '@count items downloaded.'
       );
-      $processed  = \Drupal::translation()->formatPlural(
-        $results['teas'],
-        'One tea processed.',
-        '@count teas processed.'
-      );
-      $saved      = \Drupal::translation()->formatPlural(
-        $results['nodes'],
-        'One node saved.',
-        '@count nodes saved.'
-      );
-      $inserted   = \Drupal::translation()->formatPlural(
-        $results['nodes_inserted'],
-        'One was created.',
-        '@count were created.'
-      );
-      $updated    = \Drupal::translation()->formatPlural(
-        $results['nodes_updated'],
-        'One was updated.',
-        '@count were updated.'
-      );
+//      $processed  = \Drupal::translation()->formatPlural(
+//        $results['items'],
+//        'One tea processed.',
+//        '@count items processed.'
+//      );
+//      $saved      = \Drupal::translation()->formatPlural(
+//        $results['nodes'],
+//        'One node saved.',
+//        '@count nodes saved.'
+//      );
+//      $inserted   = \Drupal::translation()->formatPlural(
+//        $results['nodes_inserted'],
+//        'One was created.',
+//        '@count were created.'
+//      );
+//      $updated    = \Drupal::translation()->formatPlural(
+//        $results['nodes_updated'],
+//        'One was updated.',
+//        '@count were updated.'
+//      );
     }
     drupal_set_message($downloaded);
     if ($processed) {

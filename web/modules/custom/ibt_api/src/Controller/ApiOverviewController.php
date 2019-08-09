@@ -3,14 +3,14 @@
 namespace Drupal\ibt_api\Controller;
 
 use Drupal\Core\Controller\ControllerBase;
-use Drupal\ibt_api\Connection\MixcloudConnection;
+use Drupal\ibt_api\Connection\ApiConnection;
 use GuzzleHttp\Exception\ServerException;
 use GuzzleHttp\Exception\ClientException;
 
 /**
  * Provides controller methods for the mixcloudApi API integration overview.
  */
-class mixCloudApiOverviewController extends ControllerBase {
+class ApiOverviewController extends ControllerBase {
 
   /**
    * {@inheritdoc}
@@ -18,7 +18,7 @@ class mixCloudApiOverviewController extends ControllerBase {
   public function showOverview() {
     $build = [];
 
-    list($response, $json) = $this->pingEndpoint($build);
+    list($response, $json) = $this->pingEndpoint($build, 'endpoint.overview');
     // If response data was built and returned, display it with a sample of the
     // objects returned
     if (isset($response)) {
@@ -33,16 +33,15 @@ class mixCloudApiOverviewController extends ControllerBase {
       ];
     }
     if (isset($json)) {
-      $t=1;
       $build['response_data'] = [
         '#theme' => 'item_list',
         '#title' => t('Response Data:'),
         '#items' => [
-          'response-type' => t('Response Type: @t', [
+          'response-type' => t('Response title: @t', [
             '@t' => $json->name ?? t('Unknown'),
           ]),
           'total-count' => t('Total Count: @c', [
-            '@c' => isset($json->data) ? count($json->data) : t('Unknown'),
+            '@c' => isset($json->cloudcast_count) ? $json->cloudcast_count : t('Unknown'),
           ]),
         ],
       ];
@@ -53,25 +52,24 @@ class mixCloudApiOverviewController extends ControllerBase {
   }
 
   /**
-   * Ping the mixcloudApi API for basic data.
+   * Ping the API for basic data.
    *
    * @param array $build render array
    *
    * @return array of [$response, $json]
    */
-  protected function pingEndpoint(&$build) {
-    $connection = new MixcloudConnection();
+  protected function pingEndpoint(&$build, $endpoint) {
+    $connection = new ApiConnection();
     $response   = NULL;
     $json       = NULL;
     try {
-      $response = $connection->callEndpoint('ApiDetailsFull', [
-        'limit'     => 10,
-        'url_query' => [
-          'sort' => 'gid asc',
-        ]
+      $response = $connection->callEndpoint($endpoint, [
+//        'limit'     => 10,
+//        'url_query' => [
+//          'sort' => 'gid asc',
+//        ]
       ]);
       $json = json_decode($response->getBody());
-      $t1=1;
     } catch (ServerException $e) {
       // Handle their server-side errors
       $build['server_error'] = [
