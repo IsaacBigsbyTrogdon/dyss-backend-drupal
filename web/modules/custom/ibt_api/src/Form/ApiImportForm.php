@@ -243,7 +243,7 @@ class ApiImportForm extends FormBase {
     $connection = Database::getConnection();
     /** @var \Drupal\ibt_api\UtilityService $utility */
     $utility = \Drupal::service('ibt_api.utility');
-    $channel = $utility->getTerm('Dyssembler Radio on Mixcloud');
+    $channel = $utility->get('taxonomy_term', 'name', 'Dyssembler Radio on Mixcloud');
     if (!isset($context['sandbox']['progress'])) {
       $context['sandbox'] = [
         'progress' => 0,

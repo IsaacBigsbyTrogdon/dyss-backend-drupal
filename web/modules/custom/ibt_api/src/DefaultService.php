@@ -1,7 +1,7 @@
 <?php
 
 namespace Drupal\ibt_api;
-use Drupal\Core\Path\AliasManagerInterface;
+use Drupal\Core\Database\Driver\mysql\Connection;
 
 /**
  * Class DefaultService.
@@ -9,17 +9,17 @@ use Drupal\Core\Path\AliasManagerInterface;
 class DefaultService {
 
   /**
-   * Drupal\Core\Path\AliasManagerInterface definition.
+   * Drupal\Core\Database\Driver\mysql\Connection definition.
    *
-   * @var \Drupal\Core\Path\AliasManagerInterface
+   * @var \Drupal\Core\Database\Driver\mysql\Connection
    */
-  protected $pathAliasManager;
+  protected $database;
 
   /**
    * Constructs a new DefaultService object.
    */
-  public function __construct(AliasManagerInterface $path_alias_manager) {
-    $this->pathAliasManager = $path_alias_manager;
+  public function __construct(Connection $database) {
+    $this->database = $database;
   }
 
 }

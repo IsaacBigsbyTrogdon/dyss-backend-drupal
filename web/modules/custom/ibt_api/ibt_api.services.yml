@@ -8,10 +8,4 @@ services:
     arguments: ['ibt_api']
   ibt_api.utility:
     class: Drupal\ibt_api\UtilityService
-    arguments: ['@file_system', '@messenger', '@current_user', '@language_manager', '@file.usage', '@entity_type.manager', '@tempstore.private', 'pathauto.alias_cleaner']
-  logger.channel.ibt_api:
-    parent: logger.channel_base
-    arguments: ['ibt_api']
-  ibt_api.default:
-    class: Drupal\ibt_api\DefaultService
-    arguments: ['@path.alias_manager']
+    arguments: ['@file_system', '@messenger', '@current_user', '@language_manager', '@file.usage', '@entity_type.manager', '@tempstore.private', '@pathauto.alias_cleaner', '@path.validator', '@database']

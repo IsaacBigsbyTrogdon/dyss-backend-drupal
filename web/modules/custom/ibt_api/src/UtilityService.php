@@ -1,13 +1,16 @@
 <?php
 
 namespace Drupal\ibt_api;
+use Drupal\Core\Database\Driver\mysql\Connection;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Messenger\MessengerInterface;
+use Drupal\Core\Path\PathValidatorInterface;
 use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\TempStore\PrivateTempStoreFactory;
 use Drupal\language\ConfigurableLanguageManagerInterface;
 use Drupal\file\FileUsage\FileUsageInterface;
+use Drupal\pathauto\AliasCleanerInterface;
 
 /**
  * Class UtilityService.
@@ -66,13 +69,37 @@ class UtilityService implements UtilityServiceInterface {
   protected $tempstore;
 
   /**
-   * @param \Drupal\Core\File\FileSystemInterface
-   * @param \Drupal\Core\Messenger\MessengerInterface
-   * @param \Drupal\Core\Session\AccountProxyInterface
-   * @param \Drupal\language\ConfigurableLanguageManagerInterface
-   * @param \Drupal\file\FileUsage\FileUsageInterface
-   * @param \Drupal\Core\Entity\EntityTypeManagerInterface
-   * @param \Drupal\Core\TempStore\PrivateTempStoreFactory
+   * The alias cleaner.
+   *
+   * @var \Drupal\pathauto\AliasCleanerInterface
+   */
+  protected $aliasCleaner;
+
+  /**
+   * Drupal\Core\Path\PathValidatorInterface definition.
+   *
+   * @var \Drupal\Core\Path\PathValidatorInterface
+   */
+  protected $pathValidator;
+
+  /**
+   * Drupal\Core\Database\Driver\mysql\Connection definition.
+   *
+   * @var \Drupal\Core\Database\Driver\mysql\Connection
+   */
+  protected $database;
+
+  /**
+   * @param \Drupal\Core\File\FileSystemInterface $file_system
+   * @param \Drupal\Core\Messenger\MessengerInterface $messenger
+   * @param \Drupal\Core\Session\AccountProxyInterface $current_user
+   * @param \Drupal\language\ConfigurableLanguageManagerInterface $language_manager
+   * @param \Drupal\file\FileUsage\FileUsageInterface $file_usage
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   * @param \Drupal\Core\TempStore\PrivateTempStoreFactory $tempstore_private
+   * @param \Drupal\pathauto\AliasCleanerInterface $alias_cleaner
+   * @param \Drupal\Core\Path\PathValidatorInterface $path_validator
+   * @param \Drupal\Core\Database\Driver\mysql\Connection $database
    */
   public function __construct(FileSystemInterface $file_system,
                               MessengerInterface $messenger,
@@ -80,7 +107,10 @@ class UtilityService implements UtilityServiceInterface {
                               ConfigurableLanguageManagerInterface $language_manager,
                               FileUsageInterface $file_usage,
                               EntityTypeManagerInterface $entity_type_manager,
-                              PrivateTempStoreFactory $tempstore_private) {
+                              PrivateTempStoreFactory $tempstore_private,
+                              AliasCleanerInterface $alias_cleaner,
+                              PathValidatorInterface $path_validator,
+                              Connection $database) {
     $this->fileSystem = $file_system;
     $this->messenger = $messenger;
     $this->currentUser = $current_user;
@@ -88,6 +118,9 @@ class UtilityService implements UtilityServiceInterface {
     $this->fileUsage = $file_usage;
     $this->entityTypeManager = $entity_type_manager;
     $this->tempstore = $tempstore_private;
+    $this->aliasCleaner = $alias_cleaner;
+    $this->pathValidator = $path_validator;
+    $this->database = $database;
   }
 
   public function processApiData($type, $bundle, $data, $channel = NULL) {
@@ -105,12 +138,22 @@ class UtilityService implements UtilityServiceInterface {
     }
   }
 
+  /**
+   * @param $type
+   * @param $bundle
+   * @param $value
+   *
+   * @return \Drupal\Core\Entity\EntityInterface|mixed|null
+   * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
+   * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
+   */
   private function entityExists($type, $bundle, $value) {
-    $entityManager = $this->entityTypeManager->getListBuilder($type);
+    $entity = NULL;
     switch ($type) {
       case 'node':
         switch ($bundle) {
           case 'audio':
+            $entityManager = $this->entityTypeManager->getListBuilder($type);
             $ids = $entityManager
             ->getStorage()
             ->loadByProperties([
@@ -122,10 +165,22 @@ class UtilityService implements UtilityServiceInterface {
         }
         break; // node
       case 'taxonomy_term':
-        return $this->getTerm($value);
+        $entity = $this->get($type, 'name', $value);
+        break;
+
+      case 'file':
+        $query = $this->database
+          ->select('file_managed', 'f');
+        $query->addField('f', 'fid');
+        $query->condition('f.filename', $value);
+        $result = $query->execute()->fetchAllKeyed();
+        $id = array_keys($result);
+        $id = reset($id);
+        $entity = $this->entityTypeManager->getStorage($type)
+          ->load($id);
         break;
     }
-    return FALSE;
+    return $entity;
   }
 
   private function createNode($bundle, $data) {
@@ -139,8 +194,8 @@ class UtilityService implements UtilityServiceInterface {
             }
             $tags[] = $entity;
           }
-          if (!empty($data->pictures->large)) {
-            $this->createMedia('image', ['url' => $data->pictures->large, 'name' => $data->name]);
+          if (!empty($data->pictures->extra_large)) {
+            $this->createMedia('image', ['url' => $data->pictures->extra_large, 'name' => $data->name]);
           }
           $t=1;
         }
@@ -152,47 +207,65 @@ class UtilityService implements UtilityServiceInterface {
     switch ($bundle) {
       case 'image':
         $filedata = file_get_contents($data['url']);
-        $name = $this::sanitize($data['name']);
-        $destination = 'public://images/' . $name;
-        $file = file_save_data($filedata, $destination,  FileSystemInterface::EXISTS_REPLACE);
+        $name = $data['name'] ?? 'Unknown-name';
+        $name_clean = $this->aliasCleaner->cleanString($name);
+        $name_clean = ucfirst($name_clean) . '.jpg';
+        /** @var  $file */
+        if ($file = $this->entityExists('file', NULL, $name_clean)) {
+          $file->delete();
+        }
+        $uri = 'public://images';
+        $destination = implode('/', [$uri, $name_clean]);
+        if (!$this->pathValidator->isValid($uri)) {
+          $this->fileSystem->mkdir($uri);
+        }
+        if ($file = file_save_data($filedata, $destination,  FileSystemInterface::EXISTS_REPLACE)) {
+          $this->messenger->addStatus(t('File successively created with FID: @fid', ['@fid' => $file->id()]));
 
-        $t=1;
+          // Create file entity.
+          $image_media = \Drupal\media\Entity\Media::create([
+            'bundle' => 'image',
+            'uid' => \Drupal::currentUser()->id(),
+            'langcode' => $this->languageManager->getDefaultLanguage()->getId(),
+            'status' => 1,
+            'field_image' => [
+              'target_id' => $file->id(),
+              'alt' => t('Placeholder image'),
+              'title' => t('Placeholder image'),
+            ],
+          ]);
+          $t=1;
+          $image_media->save();
+        }
         break;
     }
   }
 
-  public static function sanitize($string){
-    $string = ‌‌rawurlencode(str_replace('#', '', str_replace(' ', '-', $string)));
-    return $string;
-  }
-
   /**
-   * @param $name
+   * @param $type
+   * @param $prop
+   * @param $value
    *
    * @return \Drupal\Core\Entity\EntityInterface|mixed|null
    * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
    * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
-   * @throws \Drupal\Core\TempStore\TempStoreException
    */
-  public function getTerm($name) {
-//    if ($terms = $this->getStore('terms')) {
-//      if (isset($terms[$name])) {
-//        return $terms[$name];
-//      }
-//    }
-    if (!$item = $this->entityTypeManager->getStorage('taxonomy_term')->loadByProperties(['name' => $name])) {
-      return NULL;
-    };
-    if (is_array($item)) {
-      $term = reset($item);
-//      $terms[$name] = $term;
-//      $this->setStore('terms', $terms);
-      return $term;
+  public function get($type, $prop, $value) {
+    $item = NULL;
+    switch ($type) {
+      case 'taxonomy_term':
+      case 'file':
+        if (!$result = $this->entityTypeManager->getStorage($type)->loadByProperties([$prop => $value])) {
+          return NULL;
+        }
+        elseif (is_array($result)) {
+          $item = reset($result);
+        }
+        break;
     }
-    else {
-      return NULL;
-    }
+    return $item;
   }
+
 
   /**
    * @param $key
