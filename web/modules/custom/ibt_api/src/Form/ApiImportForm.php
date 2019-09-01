@@ -269,21 +269,12 @@ class ApiImportForm extends FormBase {
     foreach ($results as $row) {
       $slug        = $row->slug;
       $data   = unserialize($row->data);
-      $utility->processApiData('node', 'audio', $data, $channel);
-      $t=1;
-//      $node        = new mixcloudApi($data);
-//      $node_saved = $tea->processTea(); // Custom data-to-node processing
-      $node_saved = TRUE;
+      $node_saved = $utility->processApiData('node', 'audio', $data, $channel);
       $connection->merge('ibt_api_previous')
         ->key('slug')
         ->insertFields([
           'slug'  => $slug,
-          'data' => $row->data,
-        ])
-        ->updateFields(['data' => $row->data])
-        ->execute()
-      ;
-
+        ])->execute();
       $query = $connection->delete('ibt_api_staging');
       $query->condition('slug', $slug);
       $query->execute();
@@ -293,7 +284,7 @@ class ApiImportForm extends FormBase {
       // Tally only the nodes saved
       if ($node_saved) {
         $context['results']['nodes']++;
-        $context['results']['nodes_' . $node_saved]++;
+        $context['results']['nodes_saved']++;
       }
 
       // Build a message so this isn't entirely boring for admins
@@ -305,10 +296,9 @@ class ApiImportForm extends FormBase {
         '@u' => $context['results']['nodes_updated'],
       ]);
       $msg .= '<br />';
-      $msg .= t('Last tea: %t %g %n', [
-//        '%t' => $tea->getTitle(),
-//        '%g' => '(GID:' . $gid . ')',
-//        '%n' => '(node:' . $tea->getNode()->id() . ')',
+      $msg .= t('Last item: %t %n', [
+        '%t' => $node_saved->getTitle(),
+        '%n' => '(nid:' . $node_saved->id() . ')',
       ]);
       $context['message'] = $msg;
     }

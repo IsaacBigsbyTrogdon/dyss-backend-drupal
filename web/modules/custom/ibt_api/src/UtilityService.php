@@ -8,9 +8,15 @@ use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Path\PathValidatorInterface;
 use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\TempStore\PrivateTempStoreFactory;
+use Drupal\datetime\Plugin\Field\FieldType\DateTimeItemInterface;
+use Drupal\file\Entity\File;
 use Drupal\language\ConfigurableLanguageManagerInterface;
 use Drupal\file\FileUsage\FileUsageInterface;
 use Drupal\pathauto\AliasCleanerInterface;
+use Drupal\media\Entity\Media;
+use Drupal\node\Entity\Node;
+use Drupal\taxonomy\Entity\Term;
+use Drupal\Core\Datetime\DrupalDateTime;
 
 /**
  * Class UtilityService.
@@ -18,6 +24,11 @@ use Drupal\pathauto\AliasCleanerInterface;
 class UtilityService implements UtilityServiceInterface {
 
   CONST MODULE_NAME = 'ibt_api';
+
+  CONST PUBLIC_URI = 'public://';
+
+  CONST IMAGES = 'images';
+
 
   /**
    * Drupal\Core\File\FileSystemInterface definition.
@@ -123,19 +134,30 @@ class UtilityService implements UtilityServiceInterface {
     $this->database = $database;
   }
 
+  /**
+   * @param $type
+   * @param $bundle
+   * @param $data
+   * @param null $channel
+   *
+   * @return \Drupal\Core\Entity\EntityInterface|\Drupal\node\Entity\Node|mixed|null
+   * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
+   * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
+   */
   public function processApiData($type, $bundle, $data, $channel = NULL) {
+    $entity = NULL;
     switch ($bundle) {
       case 'audio':
-        if ($this->entityExists($type, $bundle, $data->slug)) {
-          $this->update($type, $bundle, $data->slug);
+        if ($entity = $this->entityExists($type, $bundle, $data->slug)) {
+          $this->update($type, $bundle, $entity, $data);
         }
         else {
           $data->channel = $channel;
-          $this->createNode($bundle, $data);
+          $entity = $this->createNode($bundle, $data);
         }
-        $t=1;
         break;
     }
+    return $entity;
   }
 
   /**
@@ -154,18 +176,24 @@ class UtilityService implements UtilityServiceInterface {
         switch ($bundle) {
           case 'audio':
             $entityManager = $this->entityTypeManager->getListBuilder($type);
-            $ids = $entityManager
+            $result = $entityManager
             ->getStorage()
             ->loadByProperties([
               'type' => $bundle,
               'field_slug' => $value,
             ]);
-            $t=1;
+            $id = array_keys($result);
+            $id = reset($id);
+            $entity = $this->entityTypeManager->getStorage($type)
+              ->load($id);
             break;
         }
         break; // node
       case 'taxonomy_term':
         $entity = $this->get($type, 'name', $value);
+        break;
+      case 'media':
+        $entity = $this->get($type, 'field_url', $value);
         break;
 
       case 'file':
@@ -184,61 +212,94 @@ class UtilityService implements UtilityServiceInterface {
   }
 
   private function createNode($bundle, $data) {
+    $node = NULL;
     switch ($bundle) {
       case 'audio':
+        /** @var \Drupal\node\Entity\Node $node */
+        $node = Node::create([
+          'type' => $bundle,
+          'title' => $data->name,
+          'uid' => $this->currentUser->id(),
+        ]);
         if (!empty($data->tags)) {
-          $tags = [];
           foreach ($data->tags as $tag) {
-            if (!$entity = $this->entityExists('taxonomy_term', 'channel', $tag->name)) {
-              $entity = $this->createTerm('tags', $tag);
+            if (!$term = $this->entityExists('taxonomy_term', 'channel', $tag->name)) {
+              $term = $this->createTerm('tags', $tag);
+              $this->messenger->addStatus(t('Term created with tid: @tid', ['@mid' => $term->id()]));
             }
-            $tags[] = $entity;
+            $node->get('field_tags')->appendItem($term);
           }
-          if (!empty($data->pictures->extra_large)) {
-            $this->createMedia('image', ['url' => $data->pictures->extra_large, 'name' => $data->name]);
-          }
-          $t=1;
+          unset($data->tags);
         }
+        if (!empty($data->pictures->extra_large)) {
+          if (!$media_image = $this->entityExists('media', 'image', $data->pictures->extra_large)) {
+            $media_image = $this->createMedia('image', ['url' => $data->pictures->extra_large, 'name' => $data->name]);
+            $this->messenger->addStatus(t('Media created with mid: @mid', ['@mid' => $media_image->id()]));
+          }
+          $node->get('field_images')->appendItem($media_image);
+          unset($data->pictures);
+        }
+        if (!empty($data->channel) && $data->channel instanceof Term) {
+          $node->get('field_channels')->appendItem($data->channel);
+          unset($data->channel);
+        }
+        foreach($data as $key => $value) {
+          if ($node->hasField('field_' . $key)) {
+            $node->set('field_' . $key, $value);
+          }
+        }
+        $node->save();
         break;
     }
+    return $node;
   }
 
   private function createMedia($bundle, $data) {
+    $media = NULL;
     switch ($bundle) {
       case 'image':
-        $filedata = file_get_contents($data['url']);
+        $fileData = file_get_contents($data['url']);
         $name = $data['name'] ?? 'Unknown-name';
-        $name_clean = $this->aliasCleaner->cleanString($name);
-        $name_clean = ucfirst($name_clean) . '.jpg';
+        $nameClean = $this->aliasCleaner->cleanString($name);
+        $nameClean = ucfirst($nameClean) . '.jpg';
         /** @var  $file */
-        if ($file = $this->entityExists('file', NULL, $name_clean)) {
-          $file->delete();
+        if (!$file = $this->entityExists('file', NULL, $nameClean)) {
+          $file = $this->createFile($fileData, $nameClean);
+          $this->messenger->addStatus(t('File created with fid: @fid', ['@fid' => $file->id()]));
         }
-        $uri = 'public://images';
-        $destination = implode('/', [$uri, $name_clean]);
-        if (!$this->pathValidator->isValid($uri)) {
-          $this->fileSystem->mkdir($uri);
-        }
-        if ($file = file_save_data($filedata, $destination,  FileSystemInterface::EXISTS_REPLACE)) {
-          $this->messenger->addStatus(t('File successively created with FID: @fid', ['@fid' => $file->id()]));
-
-          // Create file entity.
-          $image_media = \Drupal\media\Entity\Media::create([
+        if ($file instanceof File) {
+          $media = Media::create([
             'bundle' => 'image',
-            'uid' => \Drupal::currentUser()->id(),
+            'uid' => $this->currentUser->id(),
             'langcode' => $this->languageManager->getDefaultLanguage()->getId(),
             'status' => 1,
-            'field_image' => [
+            'field_media_image' => [
               'target_id' => $file->id(),
-              'alt' => t('Placeholder image'),
-              'title' => t('Placeholder image'),
+              'alt' => $name,
+              'title' => $name,
             ],
+            'field_url' => $data['url'] ?: NULL,
           ]);
-          $t=1;
-          $image_media->save();
+          $media->save();
         }
         break;
     }
+    return $media;
+  }
+
+  /**
+   * @param $data
+   * @param $name
+   *
+   * @return \Drupal\file\FileInterface|false
+   */
+  private function createFile($data, $name) {
+    $uri = $this::PUBLIC_URI . $this::IMAGES;
+    if (!$this->pathValidator->isValid($uri)) {
+      $this->fileSystem->mkdir($uri);
+    }
+    $destination = implode('/', [$uri, $name]);
+    return file_save_data($data, $destination,  $this->fileSystem::EXISTS_REPLACE);
   }
 
   /**
@@ -255,6 +316,7 @@ class UtilityService implements UtilityServiceInterface {
     switch ($type) {
       case 'taxonomy_term':
       case 'file':
+      case 'media':
         if (!$result = $this->entityTypeManager->getStorage($type)->loadByProperties([$prop => $value])) {
           return NULL;
         }
@@ -286,8 +348,26 @@ class UtilityService implements UtilityServiceInterface {
     $this->tempstore->get($this::MODULE_NAME)->set($key, $value);
   }
 
-  private function update($type, $bundle, $entity) {
+  /**
+   * @param $type
+   * @param $bundle
+   * @param $entity
+   * @param $data
+   */
+  private function update($type, $bundle, $entity, $data) {
+    switch ($type) {
+      case 'node':
+        switch ($bundle) {
+          case 'audio':
+            // @todo;
+            $entity->set('field_created_time', $data->created_time);
+            $entity->set('created', strtotime($data->created_time));
+            $entity->save();
+            break;
+        }
 
+        break;
+    }
   }
 
   /**

@@ -25,3 +25,7 @@
 modules/contrib
 node_modules
 /web/sites/default/settings.db.php
+
+*.sql
+*.zip
+*.tar.gz
