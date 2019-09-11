@@ -8,7 +8,7 @@ use GuzzleHttp\Psr7\Request as GuzzleRequest;
 
 
 /**
- * Class MixcloudConnection
+ * Class ApiConnection
  *
  * @package Drupal\ibt_api
  */

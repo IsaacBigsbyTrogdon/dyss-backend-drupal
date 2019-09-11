@@ -10,6 +10,7 @@ use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\TempStore\PrivateTempStoreFactory;
 use Drupal\datetime\Plugin\Field\FieldType\DateTimeItemInterface;
 use Drupal\file\Entity\File;
+use Drupal\ibt_api\Connection\ApiConnection;
 use Drupal\language\ConfigurableLanguageManagerInterface;
 use Drupal\file\FileUsage\FileUsageInterface;
 use Drupal\pathauto\AliasCleanerInterface;
@@ -21,7 +22,7 @@ use Drupal\Core\Datetime\DrupalDateTime;
 /**
  * Class UtilityService.
  */
-class UtilityService implements UtilityServiceInterface {
+class UtilityService {
 
   CONST MODULE_NAME = 'ibt_api';
 

@@ -2,35 +2,45 @@
 
 namespace Drupal\ibt_api\Form;
 
+use Dflydev\DotAccessData\Data;
+use Drupal\Core\Database\Connection;
 use Drupal\Core\Database\Database;
 use Drupal\Core\Form\FormBase;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\ibt_api\Connection\ApiConnection;
-use Drupal\ibt_api\UtilityServiceInterface;
+use Drupal\ibt_api\UtilityService;
 
 /**
- * Defines a form that triggers batch operations to download and process Tea
- * data from the API.
+ * Class ApiImportForm
+ * Download batch form.
  * Batch operations are included in this class as methods.
+ *
+ * @package Drupal\ibt_api\Form
  */
 class ApiImportForm extends FormBase {
 
   /**
-   * Drupal\ibt_api\UtilityServiceInterface definition.
+   * Drupal\ibt_api\UtilityService definition.
    *
-   * @var \Drupal\ibt_api\UtilityServiceInterface
+   * @var \Drupal\ibt_api\UtilityService
    */
   protected $util;
 
+  protected $connection;
+
+  protected $api;
+
   /**
-   * @param \Drupal\ibt_api\UtilityServiceInterface
+   * @param \Drupal\ibt_api\UtilityService $ibt_api_utility
+   * @param \Drupal\Core\Database\Connection $connection
+   * @param \Drupal\ibt_api\Connection\ApiConnection $api
    */
-  public function __construct(
-    UtilityServiceInterface $ibt_api_utility
-  ) {
+  public function __construct(UtilityService $ibt_api_utility, Connection $connection, ApiConnection $api) {
     $this->util = $ibt_api_utility;
+    $this->connection = $connection;
+    $this->api = $api;
   }
 
   /**
@@ -38,7 +48,7 @@ class ApiImportForm extends FormBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('ibt_api.utility')
+      $container->get('ibt_api.utility'), Database::getConnection(), new ApiConnection()
     );
   }
 
@@ -53,22 +63,27 @@ class ApiImportForm extends FormBase {
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state, Request $request = NULL) {
-    $connection = new ApiConnection();
-    $data       = $connection->queryEndpoint('endpoint.overview', [
-//      'limit'     => 1,
-//      'url_query' => [
-//        'sort' => 'gid asc',
-//      ]
-    ]);
+    $options = [
+      //      'limit'     => 1,
+      //      'url_query' => [
+      //        'sort' => 'gid asc',
+      //      ]
+    ];
+    $data = $this->api->queryEndpoint('endpoint.overview', $options);
 
-//    if (empty($data->pagination->total_count)) {
-//      $msg  = 'A total count of Teas was not returned, indicating that there';
-//      $msg .= ' is a problem with the connection. See ';
-//      $msg .= '<a href="/admin/config/services/i-api">the Overview page</a>';
-//      $msg .= 'for more details.';
-//      drupal_set_message(t($msg), 'error');
-//    }
-    $t=1;
+    if (isset($data->owner)) {
+      $label = $data->owner->username ?? t('Unknown');
+      $array = ['<label>', t('Channel'), '</label>', '<h2>', $label, '</h2>'];
+      $form['channel'] = [
+        '#type' => 'container',
+        '#title' => t('Owner'),
+        'owner' => [
+          '#type' => 'markup',
+          '#markup' => implode(' ', $array),
+        ],
+      ];
+    }
+
     $form['count_display'] = [
       '#type'  => 'item',
       '#title' => t('Items Found'),
@@ -122,28 +137,26 @@ class ApiImportForm extends FormBase {
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
-    $connection = Database::getConnection();
     $queue      = \Drupal::queue('ibt_api_import_worker');
     $class      = 'Drupal\ibt_api\Form\ApiImportForm';
     $batch      = [
       'title'      => t('Downloading & Processing Api Data'),
       'operations' => [
-        [ // Operation to download all of the items
-          [$class, 'downloadData'], // Static method notation
+        [
+          [$class, 'downloadData'],
           [
             $form_state->getValue('count', 0),
             $form_state->getValue('download_limit', 0),
           ],
         ],
-        [ // Operation to process & save the tea data
-          [$class, 'processItems'], // Static method notation
+        [
+          [$class, 'processItems'],
           [
             $form_state->getValue('process_limit', 0),
-//            $this->util,
           ],
         ],
       ],
-      'finished' => [$class, 'finishedBatch'], // Static method notation
+      'finished' => [$class, 'finishedBatch'],
     ];
     batch_set($batch);
     // Lock cron out of processing while these batch operations are being
@@ -154,15 +167,18 @@ class ApiImportForm extends FormBase {
       $queue->deleteItem($worker);
     }
     // Clear out the staging table for fresh, whole data
-    $connection->truncate('ibt_api_staging')->execute();
+    $this->connection->truncate('ibt_api_staging')->execute();
   }
 
   /**
    * Batch operation to download all of the Items data from Api and store
    * it in the ibt_api_staging database table.
    *
-   * @param int   $api_count
-   * @param array $context
+   * @param $api_count
+   * @param $limit
+   * @param $context
+   *
+   * @throws \Exception
    */
   public static function downloadData($api_count, $limit, &$context) {
     $database = Database::getConnection();
@@ -176,8 +192,8 @@ class ApiImportForm extends FormBase {
     }
     $sandbox = &$context['sandbox'];
 
-    $iguana = new ApiConnection();
-    $data   = $iguana->queryEndpoint('endpoint.content', [
+    $api = new ApiConnection();
+    $data   = $api->queryEndpoint('endpoint.content', [
       'limit'     => $sandbox['limit'],
       'url_query' => [
         'offset' => (string) $sandbox['progress'],
@@ -241,14 +257,11 @@ class ApiImportForm extends FormBase {
    */
   public static function processItems($limit, &$context) {
     $connection = Database::getConnection();
-    /** @var \Drupal\ibt_api\UtilityService $utility */
-    $utility = \Drupal::service('ibt_api.utility');
-    $channel = $utility->get('taxonomy_term', 'name', 'Dyssembler Radio on Mixcloud');
     if (!isset($context['sandbox']['progress'])) {
       $context['sandbox'] = [
         'progress' => 0,
         'limit'    => $limit,
-        'max'      => (int)$connection->select('ibt_api_staging', 'its')
+        'max'      => (int) $connection->select('ibt_api_staging', 'its')
           ->countQuery()->execute()->fetchField(),
       ];
       $context['results']['items'] = 0;
@@ -263,10 +276,10 @@ class ApiImportForm extends FormBase {
       ->fields('its')
       ->range(0, $sandbox['limit'])
     ;
-    $results = $query->execute();
-
-    $t=1;
-    foreach ($results as $row) {
+    /** @var \Drupal\ibt_api\UtilityService $utility */
+    $utility = \Drupal::service('ibt_api.utility');
+    $channel = $utility->get('taxonomy_term', 'name', 'Dyssembler Radio on Mixcloud');
+    foreach ($query->execute()->fetchAllKeyed() as $row) {
       $slug        = $row->slug;
       $data   = unserialize($row->data);
       $node_saved = $utility->processApiData('node', 'audio', $data, $channel);
