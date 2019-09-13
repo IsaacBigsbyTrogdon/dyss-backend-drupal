@@ -145,7 +145,7 @@ class UtilityService {
    * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
    * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
    */
-  public function processApiData($type, $bundle, $data, $channel = NULL) {
+  public function processApiData($type, $bundle, $data) {
     $entity = NULL;
     switch ($bundle) {
       case 'audio':
@@ -153,8 +153,9 @@ class UtilityService {
           $this->update($type, $bundle, $entity, $data);
         }
         else {
-          $data->channel = $channel;
-          $entity = $this->createNode($bundle, $data);
+//          $data->channel = $channel;
+          $force = TRUE;
+          $entity = $this->createNode($bundle, $data, $force);
         }
         break;
     }
@@ -212,8 +213,9 @@ class UtilityService {
     return $entity;
   }
 
-  private function createNode($bundle, $data) {
+  private function createNode($bundle, $data, $force = NULL) {
     $node = NULL;
+    // @Todo: delete existing node if $force == TRUE;
     switch ($bundle) {
       case 'audio':
         /** @var \Drupal\node\Entity\Node $node */
@@ -222,9 +224,10 @@ class UtilityService {
           'title' => $data->name,
           'uid' => $this->currentUser->id(),
         ]);
+        $t=1;
         if (!empty($data->tags)) {
           foreach ($data->tags as $tag) {
-            if (!$term = $this->entityExists('taxonomy_term', 'channel', $tag->name)) {
+            if (!$term = $this->entityExists('node', 'channel', $tag->name)) {
               $term = $this->createTerm('tags', $tag);
               $this->messenger->addStatus(t('Term created with tid: @tid', ['@mid' => $term->id()]));
             }

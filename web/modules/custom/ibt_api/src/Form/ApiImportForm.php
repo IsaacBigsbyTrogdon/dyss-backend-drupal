@@ -59,6 +59,10 @@ class ApiImportForm extends FormBase {
     return 'ibt_api_import_form';
   }
 
+  public function getDatabaseConnection() {
+    return Database::getConnection();
+  }
+
   /**
    * {@inheritdoc}
    */
@@ -143,7 +147,7 @@ class ApiImportForm extends FormBase {
       'title'      => t('Downloading & Processing Api Data'),
       'operations' => [
         [
-          [$class, 'downloadData'],
+          [$class, 'downloadChannelData'],
           [
             $form_state->getValue('count', 0),
             $form_state->getValue('download_limit', 0),
@@ -155,6 +159,13 @@ class ApiImportForm extends FormBase {
             $form_state->getValue('process_limit', 0),
           ],
         ],
+        [
+          [$class, 'downloadPageData'],
+          [
+            $form_state->getValue('count', 0),
+          ],
+        ],
+
       ],
       'finished' => [$class, 'finishedBatch'],
     ];
@@ -180,12 +191,86 @@ class ApiImportForm extends FormBase {
    *
    * @throws \Exception
    */
-  public static function downloadData($api_count, $limit, &$context) {
+  public static function downloadChannelData($api_count, $limit, &$context) {
     $database = Database::getConnection();
     if (!isset($context['sandbox']['progress'])) {
       $context['sandbox'] = [
         'progress' => 0,
         'limit'    => $limit,
+        'max'      => $api_count,
+      ];
+      $context['results']['downloaded'] = 0;
+    }
+    $sandbox = &$context['sandbox'];
+
+    $api = new ApiConnection();
+    $data   = $api->queryEndpoint('endpoint.content', [
+      'limit'     => $sandbox['limit'],
+      'url_query' => [
+        'offset' => (string) $sandbox['progress'],
+        'sort'   => 'gid asc',
+      ],
+    ]);
+    if (empty($data->data)) {
+      # no results.
+    }
+    else {
+      foreach ($data->data as $data) {
+        if (empty($data->slug)) {
+          $msg = t('Empty Slug at progress @p for the data:', [
+            '@p' => $sandbox['progress'],
+          ]);
+          $msg .= '<br /><pre>' . print_r($data, TRUE) . '</pre>';
+          \Drupal::logger('ibt_api')->warning($msg);
+          $sandbox['progress']++;
+          continue;
+        }
+        // Store the data
+        $database->merge('ibt_api_staging')
+          ->key('slug')
+          ->insertFields([
+            'slug'  => $data->slug,
+            'data' => serialize($data),
+          ])
+          ->updateFields(['data' => serialize($data)])
+          ->execute()
+        ;
+        $context['results']['downloaded']++;
+        $sandbox['progress']++;
+        $context['message'] = '<h2>' . t('Downloading API data...') . '</h2>';
+        $context['message'] .= t('Queried @c of @t entries.', [
+          '@c' => $sandbox['progress'],
+          '@t' => $sandbox['max'],
+        ]);
+      }
+
+    }
+
+    if ($sandbox['max']) {
+      $context['finished'] = $sandbox['progress'] / $sandbox['max'];
+    }
+    // If completely done downloading, set the last time it was done, so that
+    // cron can keep the data up to date with smaller queries
+//    if ($context['finished'] >= 1) {
+//      $last_time = \Drupal::time()->getRequestTime();
+//      \Drupal::state()->set('iguana.tea_import_last', $last_time);
+//    }
+
+  }
+
+  public static function downloadPageData($api_count, &$context) {
+    $query = \Drupal::database()->select('node', 'n');
+    $query->addField('n', 'nid');
+    $query->join('node__field_slug', 's', 's.entity_id = n.nid');
+    $query->join('node__field_key', 'k', 'k.entity_id = n.nid');
+    $query->condition('n.type', 'blablabla');
+    $results = $query->execute()->fetchAllKeyed('n.nid');
+    $t=1;
+//
+
+    if (!isset($context['sandbox']['progress'])) {
+      $context['sandbox'] = [
+        'progress' => 0,
         'max'      => $api_count,
       ];
       $context['results']['downloaded'] = 0;
@@ -272,17 +357,16 @@ class ApiImportForm extends FormBase {
     }
     $sandbox = &$context['sandbox'];
 
-    $query = $connection->select('ibt_api_staging', 'its')
-      ->fields('its')
+    $query = $connection->select('ibt_api_staging', 's')
+      ->fields('s', ['slug', 'data'])
       ->range(0, $sandbox['limit'])
     ;
     /** @var \Drupal\ibt_api\UtilityService $utility */
     $utility = \Drupal::service('ibt_api.utility');
-    $channel = $utility->get('taxonomy_term', 'name', 'Dyssembler Radio on Mixcloud');
-    foreach ($query->execute()->fetchAllKeyed() as $row) {
-      $slug        = $row->slug;
-      $data   = unserialize($row->data);
-      $node_saved = $utility->processApiData('node', 'audio', $data, $channel);
+//    $channel = $utility->get('taxonomy_term', 'name', 'Dyssembler Radio on Mixcloud');
+    foreach ($query->execute()->fetchAllKeyed() as $slug => $row) {
+      $data   = unserialize($row);
+      $node_saved = $utility->processApiData('node', 'audio', $data);
       $connection->merge('ibt_api_previous')
         ->key('slug')
         ->insertFields([
