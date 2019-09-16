@@ -136,10 +136,10 @@ class ApiConnection {
     $public_key  = $this->getConfig('public_key');
     $territory   = $this->getConfig('territory');
     $request_uri = $this->requestUri($endpoint);
-    $limit       = isset($options['limit']) ? $options['limit'] : 25;
+    $limit       = $options['limit'] ?? 25;
     $offset      = 0;
-    $start_time  = isset($options['start_time']) ? $options['start_time'] : NULL;
-    $end_time    = isset($options['end_time']) ? $options['end_time'] : NULL;
+    $start_time  = $options['start_time'] ?? NULL;
+    $end_time    = $options['end_time'] ?? NULL;
     $url_query   = [
 //      'api_key'   => $public_key,
       'limit'     => $limit,

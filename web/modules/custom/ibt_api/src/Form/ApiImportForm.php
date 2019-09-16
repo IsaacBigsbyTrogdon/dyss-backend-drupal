@@ -3,6 +3,8 @@
 namespace Drupal\ibt_api\Form;
 
 use Dflydev\DotAccessData\Data;
+use Drupal\Core\Ajax\AjaxResponse;
+use Drupal\Core\Ajax\ReplaceCommand;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Database\Database;
 use Drupal\Core\Form\FormBase;
@@ -28,18 +30,22 @@ class ApiImportForm extends FormBase {
    */
   protected $util;
 
-  protected $connection;
+  protected $db;
 
   protected $api;
 
+  const DB_STAGING = 'ibt_api_staging';
+
+  const FORM_WRAPPER_ID = 'api-import-form-wrapper';
+
   /**
    * @param \Drupal\ibt_api\UtilityService $ibt_api_utility
-   * @param \Drupal\Core\Database\Connection $connection
+   * @param \Drupal\Core\Database\Connection $db
    * @param \Drupal\ibt_api\Connection\ApiConnection $api
    */
-  public function __construct(UtilityService $ibt_api_utility, Connection $connection, ApiConnection $api) {
+  public function __construct(UtilityService $ibt_api_utility, Connection $db, ApiConnection $api) {
     $this->util = $ibt_api_utility;
-    $this->connection = $connection;
+    $this->db = $db;
     $this->api = $api;
   }
 
@@ -56,86 +62,115 @@ class ApiImportForm extends FormBase {
    * {@inheritdoc}
    */
   public function getFormId() {
-    return 'ibt_api_import_form';
+    return 'api_import_form';
   }
 
-  public function getDatabaseConnection() {
-    return Database::getConnection();
+  public function ajaxChannelUpdate(array &$form, FormStateInterface $form_state) {
+    if (!$id = $form_state->getValue('channel_id')) return FALSE;
+    $channel = $this->util->entityTypeManager->getStorage('node')->load($id);
+    $t=1;
+
+    $response = new AjaxResponse();
+
+    // ValCommand does not exist, so we can use InvokeCommand.
+
+    $command = new ReplaceCommand(self::FORM_WRAPPER_ID, $this->formElements($form, $form_state));
+    $response->addCommand($command);
+    // Return the AjaxResponse Object.
+    return $response;
   }
 
   /**
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state, Request $request = NULL) {
-    $options = [
-      //      'limit'     => 1,
-      //      'url_query' => [
-      //        'sort' => 'gid asc',
-      //      ]
-    ];
-    $data = $this->api->queryEndpoint('endpoint.overview', $options);
+    return $this->formElements($form, $form_state, $request);
+  }
 
-    if (isset($data->owner)) {
-      $label = $data->owner->username ?? t('Unknown');
-      $array = ['<label>', t('Channel'), '</label>', '<h2>', $label, '</h2>'];
-      $form['channel'] = [
-        '#type' => 'container',
-        '#title' => t('Owner'),
-        'owner' => [
-          '#type' => 'markup',
-          '#markup' => implode(' ', $array),
-        ],
-      ];
-    }
-
-    $form['count_display'] = [
-      '#type'  => 'item',
-      '#title' => t('Items Found'),
-      'markup'  => [
-        '#markup' => $data->cloudcast_count ?? 'Unknown',
-      ]
-    ];
-
-    $form['count'] = [
-      '#type'  => 'value',
-      '#value' => $data->cloudcast_count ?? 0,
-    ];
+  public function formElements(array $form, FormStateInterface $form_state, Request $request = NULL) {
+    $data = [];
     $enabled = isset($data->cloudcast_count);
-
-    $nums   = [
-      5, 10, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 900,
+    $form['enabled'] = [
+      '#type' => 'checkbox',
+      '#required' => TRUE,
+      '#title' => 'Enabled',
     ];
-    $limits = array_combine($nums, $nums);
-    $desc   = 'This is the number of items the API should return each call ' .
-      'as the operation pages through the data.';
+    $form['channel_id'] = [
+      '#type' => 'select2',
+      '#title' => t('Select a channel to import'),
+      '#options' => $this->util->getChannelOptions(),
+      '#attached' => [
+        'library' => [
+          'select2/select2.min',
+        ],
+      ],
+      '#ajax' => [
+        'callback' => [$this, 'ajaxChannelUpdate'],
+        'event' => 'change',
+      ],
+    ];
+
+//    $data = $this->api->queryEndpoint('endpoint.overview', []);
+
+    $form['import_count'] = $enabled ? [
+      '#type'  => 'textfield',
+      '#title' => t('Items Found'),
+      '#value' => $data->cloudcast_count ?? NULL,
+      '#disabled' => TRUE,
+    ] : [];
+
+    $form['endpoint_url'] = $enabled ? [
+      '#type'  => 'textfield',
+      '#title' => t('Items Found'),
+      '#value' => $form_state->getValue('endpoint_url') ?? NULL,
+      '#disabled' => TRUE,
+    ] : [];
+
+
+    $limits = $this->getLimitsOptions();
     $form['download_limit'] = [
       '#type'          => 'select',
       '#title'         => t('API Download Throttle'),
       '#options'       => $limits,
       '#default_value' => 200,
-      '#description'   => t($desc),
+      '#description'   => t('This is the number of items the API should return each 
+      call as the operation pages through the data.'),
     ];
-    $desc = 'This is the number of items to analyze and save to Drupal as ' .
-      'the operation pages through the data. This is labor intensive so ' .
-      'usually a lower number than the above throttle';
     $form['process_limit'] = [
       '#type'          => 'select',
       '#title'         => t('Node Process Throttle'),
       '#options'       => $limits,
       '#default_value' => 50,
-      '#description'   => t($desc),
+      '#description'   => t('This is the number of items to analyze and save to Drupal as ' .
+        'the operation pages through the data. This is labor intensive so ' .
+        'usually a lower number than the above throttle'),
     ];
 
-    $form['actions']['#type'] = 'actions';
-
-    $form['actions']['submit'] = [
-      '#type'     => 'submit',
-      '#value'    => t('Start import'),
-      '#disabled' => !$enabled,
+    $form['actions'] = [
+      '#type' => 'actions',
+      'submit' => [
+        '#type'     => 'submit',
+        '#value'    => t('Start import'),
+        '#disabled' => !$enabled,
+      ],
     ];
 
-    return $form;
+    return $form = [
+      '#type' => 'container',
+      'elements' => $form,
+      '#attributes' => [
+        'id' => self::FORM_WRAPPER_ID,
+      ],
+    ];
+
   }
+
+  private function getLimitsOptions() {
+    $nums = [5, 10, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 900,];
+    return array_combine($nums, $nums);
+  }
+
+
 
   /**
    * {@inheritdoc}
@@ -149,6 +184,8 @@ class ApiImportForm extends FormBase {
         [
           [$class, 'downloadChannelData'],
           [
+            $this->api,
+            $this->db,
             $form_state->getValue('count', 0),
             $form_state->getValue('download_limit', 0),
           ],
@@ -177,22 +214,25 @@ class ApiImportForm extends FormBase {
     while ($worker = $queue->claimItem()) {
       $queue->deleteItem($worker);
     }
-    // Clear out the staging table for fresh, whole data
-    $this->connection->truncate('ibt_api_staging')->execute();
+    // Clear out the staging table.
+    $this->connection->truncate($this::DB_STAGING)->execute();
   }
 
   /**
    * Batch operation to download all of the Items data from Api and store
    * it in the ibt_api_staging database table.
    *
+   * @param $api
+   * @param $db
    * @param $api_count
    * @param $limit
    * @param $context
    *
    * @throws \Exception
    */
-  public static function downloadChannelData($api_count, $limit, &$context) {
-    $database = Database::getConnection();
+  public static function downloadChannelData($api, $database, $api_count, $limit, &$context) {
+//    $database = Database::getConnection();
+//    $api = new ApiConnection();
     if (!isset($context['sandbox']['progress'])) {
       $context['sandbox'] = [
         'progress' => 0,
@@ -203,7 +243,6 @@ class ApiImportForm extends FormBase {
     }
     $sandbox = &$context['sandbox'];
 
-    $api = new ApiConnection();
     $data   = $api->queryEndpoint('endpoint.content', [
       'limit'     => $sandbox['limit'],
       'url_query' => [
@@ -211,6 +250,8 @@ class ApiImportForm extends FormBase {
         'sort'   => 'gid asc',
       ],
     ]);
+    $t=1;
+
     if (empty($data->data)) {
       # no results.
     }
@@ -226,7 +267,7 @@ class ApiImportForm extends FormBase {
           continue;
         }
         // Store the data
-        $database->merge('ibt_api_staging')
+        $database->merge(self::DB_STAGING)
           ->key('slug')
           ->insertFields([
             'slug'  => $data->slug,
@@ -259,7 +300,8 @@ class ApiImportForm extends FormBase {
   }
 
   public static function downloadPageData($api_count, &$context) {
-    $query = \Drupal::database()->select('node', 'n');
+    $database = Database::getConnection();
+    $query = $database->select('node', 'n');
     $query->addField('n', 'nid');
     $query->join('node__field_slug', 's', 's.entity_id = n.nid');
     $query->join('node__field_key', 'k', 'k.entity_id = n.nid');
@@ -299,8 +341,8 @@ class ApiImportForm extends FormBase {
           $sandbox['progress']++;
           continue;
         }
-        // Store the data
-        $database->merge('ibt_api_staging')
+        // Store the staging data.
+        $database->merge(self::DB_STAGING)
           ->key('slug')
           ->insertFields([
             'slug'  => $data->slug,
@@ -341,12 +383,13 @@ class ApiImportForm extends FormBase {
    * @throws \Exception
    */
   public static function processItems($limit, &$context) {
+    $url  = \Drupal::config('ibt_api')->get('endpiont_overview');
     $connection = Database::getConnection();
     if (!isset($context['sandbox']['progress'])) {
       $context['sandbox'] = [
         'progress' => 0,
         'limit'    => $limit,
-        'max'      => (int) $connection->select('ibt_api_staging', 'its')
+        'max'      => (int) $connection->select(self::DB_STAGING, 'its')
           ->countQuery()->execute()->fetchField(),
       ];
       $context['results']['items'] = 0;
@@ -357,7 +400,7 @@ class ApiImportForm extends FormBase {
     }
     $sandbox = &$context['sandbox'];
 
-    $query = $connection->select('ibt_api_staging', 's')
+    $query = $connection->select(self::DB_STAGING, 's')
       ->fields('s', ['slug', 'data'])
       ->range(0, $sandbox['limit'])
     ;
@@ -372,7 +415,7 @@ class ApiImportForm extends FormBase {
         ->insertFields([
           'slug'  => $slug,
         ])->execute();
-      $query = $connection->delete('ibt_api_staging');
+      $query = $connection->delete(self::DB_STAGING);
       $query->condition('slug', $slug);
       $query->execute();
 

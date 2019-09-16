@@ -71,7 +71,7 @@ class UtilityService {
    *
    * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected $entityTypeManager;
+  public $entityTypeManager;
 
   /**
    * Drupal\Core\TempStore\PrivateTempStoreFactory definition.
@@ -160,6 +160,13 @@ class UtilityService {
         break;
     }
     return $entity;
+  }
+
+  public function getChannelOptions() : array {
+    $query = $this->database->select('node_field_data', 'n');
+    $query->fields('n', ['nid', 'title']);
+    $query->condition('n.type', 'channel');
+    return $query->execute()->fetchAllKeyed();
   }
 
   /**
