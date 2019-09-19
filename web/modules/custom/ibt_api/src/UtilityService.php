@@ -4,6 +4,7 @@ namespace Drupal\ibt_api;
 use Drupal\Core\Database\Driver\mysql\Connection;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\File\FileSystemInterface;
+use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Path\PathValidatorInterface;
 use Drupal\Core\Session\AccountProxyInterface;
@@ -30,45 +31,37 @@ class UtilityService {
 
   CONST IMAGES = 'images';
 
+  /**
+   * @var \Drupal\Core\Logger\LoggerChannelFactoryInterface
+   */
+  protected $loggerFactory;
 
   /**
-   * Drupal\Core\File\FileSystemInterface definition.
-   *
    * @var \Drupal\Core\File\FileSystemInterface
    */
   protected $fileSystem;
 
   /**
-   * Drupal\Core\Messenger\MessengerInterface definition.
-   *
    * @var \Drupal\Core\Messenger\MessengerInterface
    */
   protected $messenger;
 
   /**
-   * Drupal\Core\Session\AccountProxyInterface definition.
-   *
    * @var \Drupal\Core\Session\AccountProxyInterface
    */
   protected $currentUser;
 
   /**
-   * Drupal\language\ConfigurableLanguageManagerInterface definition.
-   *
    * @var \Drupal\language\ConfigurableLanguageManagerInterface
    */
   protected $languageManager;
 
   /**
-   * Drupal\file\FileUsage\FileUsageInterface definition.
-   *
    * @var \Drupal\file\FileUsage\FileUsageInterface
    */
   protected $fileUsage;
 
   /**
-   * Drupal\Core\Entity\EntityTypeManagerInterface definition.
-   *
    * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
   public $entityTypeManager;
@@ -78,7 +71,7 @@ class UtilityService {
    *
    * @var \Drupal\Core\TempStore\PrivateTempStoreFactory
    */
-  protected $tempstore;
+  public $tempstore;
 
   /**
    * The alias cleaner.
@@ -102,6 +95,7 @@ class UtilityService {
   protected $database;
 
   /**
+   * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $logger_factory
    * @param \Drupal\Core\File\FileSystemInterface $file_system
    * @param \Drupal\Core\Messenger\MessengerInterface $messenger
    * @param \Drupal\Core\Session\AccountProxyInterface $current_user
@@ -113,7 +107,8 @@ class UtilityService {
    * @param \Drupal\Core\Path\PathValidatorInterface $path_validator
    * @param \Drupal\Core\Database\Driver\mysql\Connection $database
    */
-  public function __construct(FileSystemInterface $file_system,
+  public function __construct(LoggerChannelFactoryInterface $logger_factory,
+                              FileSystemInterface $file_system,
                               MessengerInterface $messenger,
                               AccountProxyInterface $current_user,
                               ConfigurableLanguageManagerInterface $language_manager,
@@ -123,6 +118,7 @@ class UtilityService {
                               AliasCleanerInterface $alias_cleaner,
                               PathValidatorInterface $path_validator,
                               Connection $database) {
+    $this->loggerFactory = $logger_factory;
     $this->fileSystem = $file_system;
     $this->messenger = $messenger;
     $this->currentUser = $current_user;

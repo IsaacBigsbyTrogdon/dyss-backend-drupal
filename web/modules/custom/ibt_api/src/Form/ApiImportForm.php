@@ -2,7 +2,6 @@
 
 namespace Drupal\ibt_api\Form;
 
-use Dflydev\DotAccessData\Data;
 use Drupal\Core\Ajax\AjaxResponse;
 use Drupal\Core\Ajax\ReplaceCommand;
 use Drupal\Core\Database\Connection;
@@ -13,6 +12,9 @@ use Symfony\Component\HttpFoundation\Request;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\ibt_api\Connection\ApiConnection;
 use Drupal\ibt_api\UtilityService;
+use Drupal\Core\Messenger\MessengerInterface;
+use Drupal\Core\Logger\LoggerChannelFactoryInterface;
+use Drupal\Core\TempStore\PrivateTempStoreFactory;
 
 /**
  * Class ApiImportForm
@@ -24,26 +26,32 @@ use Drupal\ibt_api\UtilityService;
 class ApiImportForm extends FormBase {
 
   /**
-   * Drupal\ibt_api\UtilityService definition.
-   *
    * @var \Drupal\ibt_api\UtilityService
    */
   protected $util;
 
+  /**
+   * @var \Drupal\Core\Database\Connection
+   */
   protected $db;
 
+  /**
+   * @var \Drupal\ibt_api\Connection\ApiConnection
+   */
   protected $api;
 
-  const DB_STAGING = 'ibt_api_staging';
-
-  const FORM_WRAPPER_ID = 'api-import-form-wrapper';
-
   /**
+   * ApiImportForm constructor.
+   *
    * @param \Drupal\ibt_api\UtilityService $ibt_api_utility
    * @param \Drupal\Core\Database\Connection $db
    * @param \Drupal\ibt_api\Connection\ApiConnection $api
    */
-  public function __construct(UtilityService $ibt_api_utility, Connection $db, ApiConnection $api) {
+  public function __construct(
+    UtilityService $ibt_api_utility,
+    Connection $db,
+    ApiConnection $api
+  ) {
     $this->util = $ibt_api_utility;
     $this->db = $db;
     $this->api = $api;
@@ -54,9 +62,14 @@ class ApiImportForm extends FormBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('ibt_api.utility'), Database::getConnection(), new ApiConnection()
+      $container->get('ibt_api.utility'),
+      Database::getConnection(), new ApiConnection()
     );
   }
+
+  const DB_STAGING = 'ibt_api_staging';
+
+  const FORM_WRAPPER_ID = 'api-import-form-wrapper';
 
   /**
    * {@inheritdoc}
@@ -94,6 +107,7 @@ class ApiImportForm extends FormBase {
       '#type' => 'checkbox',
       '#required' => TRUE,
       '#title' => 'Enabled',
+      '#disabled' => TRUE,
     ];
     $form['channel_id'] = [
       '#type' => 'select2',
