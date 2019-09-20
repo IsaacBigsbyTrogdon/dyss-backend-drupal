@@ -8,4 +8,4 @@ services:
     arguments: ['ibt_api']
   ibt_api.utility:
     class: Drupal\ibt_api\UtilityService
-    arguments: ['@file_system', '@messenger', '@current_user', '@language_manager', '@file.usage', '@entity_type.manager', '@tempstore.private', '@pathauto.alias_cleaner', '@path.validator', '@database']
+    arguments: ['@logger.factory', '@file_system', '@messenger', '@current_user', '@language_manager', '@file.usage', '@entity_type.manager', '@tempstore.private', '@pathauto.alias_cleaner', '@path.validator', '@database']

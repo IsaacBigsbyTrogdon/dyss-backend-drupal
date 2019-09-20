@@ -2,11 +2,13 @@
 
 namespace Drupal\ibt_api\Form;
 
+use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Ajax\AjaxResponse;
 use Drupal\Core\Ajax\ReplaceCommand;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Database\Database;
 use Drupal\Core\Form\FormBase;
+use Drupal\node\Entity\Node;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Drupal\Core\Form\FormStateInterface;
@@ -63,7 +65,8 @@ class ApiImportForm extends FormBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('ibt_api.utility'),
-      Database::getConnection(), new ApiConnection()
+      Database::getConnection(),
+      new ApiConnection()
     );
   }
 
@@ -79,18 +82,26 @@ class ApiImportForm extends FormBase {
   }
 
   public function ajaxChannelUpdate(array &$form, FormStateInterface $form_state) {
-    if (!$id = $form_state->getValue('channel_id')) return FALSE;
-    $channel = $this->util->entityTypeManager->getStorage('node')->load($id);
-    $t=1;
-
-    $response = new AjaxResponse();
-
-    // ValCommand does not exist, so we can use InvokeCommand.
-
-    $command = new ReplaceCommand(self::FORM_WRAPPER_ID, $this->formElements($form, $form_state));
-    $response->addCommand($command);
-    // Return the AjaxResponse Object.
-    return $response;
+    if (!$id = $form_state->getValue($this->util::STORE_KEY_IMPORT_CHANNEL)) return FALSE;
+    /** @var \Drupal\node\Entity\Node $node */
+    if ($node = $this->util->getStore($this->util::STORE_KEY_IMPORT_CHANNEL)) {
+      if ($id !== $node->id()) $load_channel = TRUE;
+    }
+    else $load_channel = TRUE;
+    $node = !isset($load_channel) ? $node : $this->util->entityTypeManager->getStorage('node')->load($id);
+    if ($node->bundle() === 'channel' && $node->hasField($this->util::FIELD_ENDPOINTS)) {
+      if ($endpoints = $node->get($this->util::FIELD_ENDPOINTS)->getValue()) {
+        # @TODO: rewrite node field to single value: field_endpoint
+        $endpoint = reset($endpoints);
+        if (UrlHelper::isValid($endpoint)) {
+          $this->util->setStore($this->util::STORE_KEY_IMPORT_CHANNEL, $node);
+          $response = new AjaxResponse();
+          $command = new ReplaceCommand(self::FORM_WRAPPER_ID, $this->formElements($form, $form_state));
+          $response->addCommand($command);
+          return $response;
+        }
+      }
+    }
   }
 
   /**
@@ -101,7 +112,9 @@ class ApiImportForm extends FormBase {
   }
 
   public function formElements(array $form, FormStateInterface $form_state, Request $request = NULL) {
-    $data = [];
+    $import_channel = $this->util->getStore('import_channel');
+    if (!$import_channel)
+      $data = $this->api->queryEndpoint('endpoint.overview', []);
     $enabled = isset($data->cloudcast_count);
     $form['enabled'] = [
       '#type' => 'checkbox',
@@ -109,7 +122,7 @@ class ApiImportForm extends FormBase {
       '#title' => 'Enabled',
       '#disabled' => TRUE,
     ];
-    $form['channel_id'] = [
+    $form[$this->util::STORE_KEY_IMPORT_CHANNEL] = [
       '#type' => 'select2',
       '#title' => t('Select a channel to import'),
       '#options' => $this->util->getChannelOptions(),
@@ -123,9 +136,6 @@ class ApiImportForm extends FormBase {
         'event' => 'change',
       ],
     ];
-
-//    $data = $this->api->queryEndpoint('endpoint.overview', []);
-
     $form['import_count'] = $enabled ? [
       '#type'  => 'textfield',
       '#title' => t('Items Found'),

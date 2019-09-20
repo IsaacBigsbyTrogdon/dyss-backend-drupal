@@ -1,6 +1,7 @@
 <?php
 
 namespace Drupal\ibt_api;
+
 use Drupal\Core\Database\Driver\mysql\Connection;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\File\FileSystemInterface;
@@ -25,74 +26,68 @@ use Drupal\Core\Datetime\DrupalDateTime;
  */
 class UtilityService {
 
-  CONST MODULE_NAME = 'ibt_api';
+  const MODULE_NAME = 'ibt_api';
 
-  CONST PUBLIC_URI = 'public://';
+  const PUBLIC_URI = 'public://';
 
-  CONST IMAGES = 'images';
+  const IMAGES = 'images';
+
+  const FIELD_ENDPOINTS = 'field_endpoints';
+
+  const STORE_KEY_IMPORT_CHANNEL = 'import_channel';
 
   /**
    * @var \Drupal\Core\Logger\LoggerChannelFactoryInterface
    */
   protected $loggerFactory;
-
   /**
    * @var \Drupal\Core\File\FileSystemInterface
    */
   protected $fileSystem;
-
   /**
    * @var \Drupal\Core\Messenger\MessengerInterface
    */
   protected $messenger;
-
   /**
    * @var \Drupal\Core\Session\AccountProxyInterface
    */
   protected $currentUser;
-
   /**
    * @var \Drupal\language\ConfigurableLanguageManagerInterface
    */
   protected $languageManager;
-
   /**
    * @var \Drupal\file\FileUsage\FileUsageInterface
    */
   protected $fileUsage;
-
   /**
    * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
   public $entityTypeManager;
-
   /**
-   * Drupal\Core\TempStore\PrivateTempStoreFactory definition.
-   *
    * @var \Drupal\Core\TempStore\PrivateTempStoreFactory
    */
-  public $tempstore;
-
+  public $tempStore;
   /**
-   * The alias cleaner.
-   *
    * @var \Drupal\pathauto\AliasCleanerInterface
    */
   protected $aliasCleaner;
-
   /**
-   * Drupal\Core\Path\PathValidatorInterface definition.
-   *
    * @var \Drupal\Core\Path\PathValidatorInterface
    */
   protected $pathValidator;
-
   /**
-   * Drupal\Core\Database\Driver\mysql\Connection definition.
-   *
    * @var \Drupal\Core\Database\Driver\mysql\Connection
    */
   protected $database;
+//  /**
+//   * @var \Drupal\Core\Database\Connection
+//   */
+//  protected $db;
+//  /**
+//   * @var \Drupal\ibt_api\Connection\ApiConnection
+//   */
+//  protected $api;
 
   /**
    * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $logger_factory
@@ -102,22 +97,24 @@ class UtilityService {
    * @param \Drupal\language\ConfigurableLanguageManagerInterface $language_manager
    * @param \Drupal\file\FileUsage\FileUsageInterface $file_usage
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
-   * @param \Drupal\Core\TempStore\PrivateTempStoreFactory $tempstore_private
+   * @param \Drupal\Core\TempStore\PrivateTempStoreFactory $tempStore
    * @param \Drupal\pathauto\AliasCleanerInterface $alias_cleaner
    * @param \Drupal\Core\Path\PathValidatorInterface $path_validator
    * @param \Drupal\Core\Database\Driver\mysql\Connection $database
    */
-  public function __construct(LoggerChannelFactoryInterface $logger_factory,
+  public function __construct(
+    LoggerChannelFactoryInterface $logger_factory,
                               FileSystemInterface $file_system,
                               MessengerInterface $messenger,
                               AccountProxyInterface $current_user,
                               ConfigurableLanguageManagerInterface $language_manager,
                               FileUsageInterface $file_usage,
                               EntityTypeManagerInterface $entity_type_manager,
-                              PrivateTempStoreFactory $tempstore_private,
+                              PrivateTempStoreFactory $tempStore,
                               AliasCleanerInterface $alias_cleaner,
                               PathValidatorInterface $path_validator,
-                              Connection $database) {
+                              Connection $database
+  ) {
     $this->loggerFactory = $logger_factory;
     $this->fileSystem = $file_system;
     $this->messenger = $messenger;
@@ -125,7 +122,7 @@ class UtilityService {
     $this->languageManager = $language_manager;
     $this->fileUsage = $file_usage;
     $this->entityTypeManager = $entity_type_manager;
-    $this->tempstore = $tempstore_private;
+    $this->tempStore = $tempStore;
     $this->aliasCleaner = $alias_cleaner;
     $this->pathValidator = $path_validator;
     $this->database = $database;
@@ -341,18 +338,42 @@ class UtilityService {
    *
    * @return mixed
    */
-  private function getStore($key) {
-    return $this->tempstore->get($this::MODULE_NAME)->get($key);
+  public function getStore($key) {
+    try {
+      return $this->tempStore->get($this::MODULE_NAME)->get($key);
+    }
+    catch (\Exception $error) {
+      $this->loggerFactory->get($this::MODULE_NAME)->alert(t('@err', ['@err' => $error]));
+      $this->messenger->addWarning(t('Unable to save @key to tempStore', ['@key', $key]));
+    }
   }
 
   /**
    * @param $key
    * @param $value
-   *
-   * @throws \Drupal\Core\TempStore\TempStoreException
    */
-  private function setStore($key, $value) {
-    $this->tempstore->get($this::MODULE_NAME)->set($key, $value);
+  public function setStore($key, $value) {
+    try {
+      $this->tempStore->get($this::MODULE_NAME)->set($key, $value);
+    }
+    catch (\Exception $error) {
+      $this->loggerFactory->get($this::MODULE_NAME)->alert(t('@err', ['@err' => $error]));
+      $this->messenger->addWarning(t('Unable to get @key from tempStore', ['@key', $key]));
+    }
+  }
+
+  /**
+   * @param $key
+   * @param $value
+   */
+  public function deleteStore($key) {
+    try {
+      $this->tempStore->get($this::MODULE_NAME)->delete($key);
+    }
+    catch (\Exception $error) {
+      $this->loggerFactory->get($this::MODULE_NAME)->alert(t('@err', ['@err' => $error]));
+      $this->messenger->addWarning(t('Unable to delete @key from tempStore', ['@key', $key]));
+    }
   }
 
   /**
