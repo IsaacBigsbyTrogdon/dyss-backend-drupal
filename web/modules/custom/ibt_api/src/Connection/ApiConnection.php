@@ -100,7 +100,7 @@ class ApiConnection {
    * @throws \GuzzleHttp\Exception\GuzzleException
    */
   public function callEndpoint($endpoint, $options = []) {
-    $headers = $this->generateHeaders($this->requestUri($endpoint));
+    $headers = $this->generateHeaders($this->requestUri($endpoint, $options));
     $url     = isset($options['next_page']) ?
       $options['next_page'] : $this->requestUrl($endpoint, $options)
         ->toString();
@@ -113,6 +113,7 @@ class ApiConnection {
    * Build the URI part of the URL based on the endpoint and configuration.
    *
    * @param string $endpoint to the API data
+   * @param array $options
    *
    * @return string
    */
@@ -120,7 +121,7 @@ class ApiConnection {
 //    $division = $this->getConfig('division');
 //    return '/services/rest/' . $this->version . '/json/' . $division
 //      . '/' . $endpoint . '/';
-    return '/';
+    return $endpoint;
   }
 
   /**

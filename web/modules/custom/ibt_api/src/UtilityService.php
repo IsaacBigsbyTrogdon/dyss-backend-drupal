@@ -36,6 +36,8 @@ class UtilityService {
 
   const STORE_KEY_IMPORT_CHANNEL = 'import_channel';
 
+  const STORE_KEY_IMPORT_CHANNEL_ENDPOINT = 'import_channel_endpoint';
+
   /**
    * @var \Drupal\Core\Logger\LoggerChannelFactoryInterface
    */
@@ -79,7 +81,7 @@ class UtilityService {
   /**
    * @var \Drupal\Core\Database\Driver\mysql\Connection
    */
-  protected $database;
+  public $database;
 //  /**
 //   * @var \Drupal\Core\Database\Connection
 //   */

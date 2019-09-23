@@ -72,6 +72,8 @@ class ApiImportForm extends FormBase {
 
   const DB_STAGING = 'ibt_api_staging';
 
+  const DB_IMPORTED = 'ibt_api_imported';
+
   const FORM_WRAPPER_ID = 'api-import-form-wrapper';
 
   /**
@@ -82,26 +84,34 @@ class ApiImportForm extends FormBase {
   }
 
   public function ajaxChannelUpdate(array &$form, FormStateInterface $form_state) {
-    if (!$id = $form_state->getValue($this->util::STORE_KEY_IMPORT_CHANNEL)) return FALSE;
+    if (!$id = $form_state->getValue($this->util::STORE_KEY_IMPORT_CHANNEL)) {
+      $this->util->deleteStore($this->util::STORE_KEY_IMPORT_CHANNEL);
+      $this->util->deleteStore($this->util::STORE_KEY_IMPORT_CHANNEL_ENDPOINT);
+    }
     /** @var \Drupal\node\Entity\Node $node */
     if ($node = $this->util->getStore($this->util::STORE_KEY_IMPORT_CHANNEL)) {
       if ($id !== $node->id()) $load_channel = TRUE;
     }
     else $load_channel = TRUE;
     $node = !isset($load_channel) ? $node : $this->util->entityTypeManager->getStorage('node')->load($id);
-    if ($node->bundle() === 'channel' && $node->hasField($this->util::FIELD_ENDPOINTS)) {
-      if ($endpoints = $node->get($this->util::FIELD_ENDPOINTS)->getValue()) {
-        # @TODO: rewrite node field to single value: field_endpoint
-        $endpoint = reset($endpoints);
-        if (UrlHelper::isValid($endpoint)) {
-          $this->util->setStore($this->util::STORE_KEY_IMPORT_CHANNEL, $node);
-          $response = new AjaxResponse();
-          $command = new ReplaceCommand(self::FORM_WRAPPER_ID, $this->formElements($form, $form_state));
-          $response->addCommand($command);
-          return $response;
+    if ($node instanceof Node) {
+      if ($node->bundle() === 'channel' && $node->hasField($this->util::FIELD_ENDPOINTS)) {
+        if ($endpoints = $node->get($this->util::FIELD_ENDPOINTS)->getValue()) {
+          $endpoint = reset($endpoints);
+  //        if (!isset($endpoint['uri'])) return FALSE;
+          if (isset($endpoint['uri'])) {
+            if (UrlHelper::isValid($endpoint['uri'])) {
+              $this->util->setStore($this->util::STORE_KEY_IMPORT_CHANNEL, $node);
+              $this->util->setStore($this->util::STORE_KEY_IMPORT_CHANNEL_ENDPOINT, $endpoint['uri']);
+            }
+          }
         }
       }
     }
+    $form_state->setRebuild(true);
+    $response = new AjaxResponse();
+    $response->addCommand(new ReplaceCommand(NULL, $form));
+    return $response;
   }
 
   /**
@@ -111,21 +121,20 @@ class ApiImportForm extends FormBase {
     return $this->formElements($form, $form_state, $request);
   }
 
+  /**
+   * @inheritDoc
+   */
   public function formElements(array $form, FormStateInterface $form_state, Request $request = NULL) {
-    $import_channel = $this->util->getStore('import_channel');
-    if (!$import_channel)
-      $data = $this->api->queryEndpoint('endpoint.overview', []);
-    $enabled = isset($data->cloudcast_count);
-    $form['enabled'] = [
-      '#type' => 'checkbox',
-      '#required' => TRUE,
-      '#title' => 'Enabled',
-      '#disabled' => TRUE,
-    ];
-    $form[$this->util::STORE_KEY_IMPORT_CHANNEL] = [
+    $channel = $this->util->getStore($this->util::STORE_KEY_IMPORT_CHANNEL);
+    $enabled = isset($channel);
+    $endpoint = $this->util->getStore($this->util::STORE_KEY_IMPORT_CHANNEL_ENDPOINT);
+    if ($endpoint)
+      $data = $this->api->queryEndpoint($endpoint, []);
+    $elements[$this->util::STORE_KEY_IMPORT_CHANNEL] = [
       '#type' => 'select2',
       '#title' => t('Select a channel to import'),
       '#options' => $this->util->getChannelOptions(),
+      '#default_value' => $channel ? $channel->id() : NULL,
       '#attached' => [
         'library' => [
           'select2/select2.min',
@@ -134,54 +143,58 @@ class ApiImportForm extends FormBase {
       '#ajax' => [
         'callback' => [$this, 'ajaxChannelUpdate'],
         'event' => 'change',
+        'wrapper' => self::FORM_WRAPPER_ID
       ],
     ];
-    $form['import_count'] = $enabled ? [
+    $elements['import_count'] = $enabled ? [
       '#type'  => 'textfield',
       '#title' => t('Items Found'),
       '#value' => $data->cloudcast_count ?? NULL,
       '#disabled' => TRUE,
     ] : [];
 
-    $form['endpoint_url'] = $enabled ? [
+    $elements[$this->util::STORE_KEY_IMPORT_CHANNEL_ENDPOINT] = $enabled ? [
       '#type'  => 'textfield',
-      '#title' => t('Items Found'),
-      '#value' => $form_state->getValue('endpoint_url') ?? NULL,
+      '#title' => t('Endpoint'),
+      '#default_value' => $endpoint ?? NULL,
       '#disabled' => TRUE,
     ] : [];
 
 
     $limits = $this->getLimitsOptions();
-    $form['download_limit'] = [
-      '#type'          => 'select',
-      '#title'         => t('API Download Throttle'),
-      '#options'       => $limits,
-      '#default_value' => 200,
-      '#description'   => t('This is the number of items the API should return each 
-      call as the operation pages through the data.'),
-    ];
-    $form['process_limit'] = [
-      '#type'          => 'select',
-      '#title'         => t('Node Process Throttle'),
-      '#options'       => $limits,
-      '#default_value' => 50,
-      '#description'   => t('This is the number of items to analyze and save to Drupal as ' .
-        'the operation pages through the data. This is labor intensive so ' .
-        'usually a lower number than the above throttle'),
+    $elements['limits'] = !$enabled ? [] : [
+      'download_limit' => [
+        '#type'          => 'select',
+        '#title'         => t('API Download Throttle'),
+        '#options'       => $limits,
+        '#default_value' => 200,
+        '#description'   => t('This is the number of items the API should return each call as the operation pages through the data.'),
+      ],
+      'process_limit' => [
+        '#type'          => 'select',
+        '#title'         => t('Node Process Throttle'),
+        '#options'       => $limits,
+        '#default_value' => 50,
+        '#description'   => t('This is the number of items to analyze and save to Drupal as ' .
+          'the operation pages through the data. This is labor intensive so ' .
+          'usually a lower number than the above throttle'),
+      ],
     ];
 
-    $form['actions'] = [
+    $elements['actions'] = [
       '#type' => 'actions',
       'submit' => [
         '#type'     => 'submit',
-        '#value'    => t('Start import'),
+        '#value'    => $enabled ? ('Start import') : 'x',
         '#disabled' => !$enabled,
       ],
     ];
 
     return $form = [
+      'items' => $elements,
+//      '#prefix' => '<div id="' . self::FORM_WRAPPER_ID . '">',
+//      '#suffix' => '</div>',
       '#type' => 'container',
-      'elements' => $form,
       '#attributes' => [
         'id' => self::FORM_WRAPPER_ID,
       ],
@@ -209,23 +222,26 @@ class ApiImportForm extends FormBase {
           [$class, 'downloadChannelData'],
           [
             $this->api,
-            $this->db,
+            $form_state->getValue($this->util::STORE_KEY_IMPORT_CHANNEL_ENDPOINT),
+            $form_state->getValue($this->util::STORE_KEY_IMPORT_CHANNEL),
             $form_state->getValue('count', 0),
             $form_state->getValue('download_limit', 0),
           ],
         ],
-        [
-          [$class, 'processItems'],
-          [
-            $form_state->getValue('process_limit', 0),
-          ],
-        ],
-        [
-          [$class, 'downloadPageData'],
-          [
-            $form_state->getValue('count', 0),
-          ],
-        ],
+//        [
+//          [$class, 'processItems'],
+//          [
+//            $this->api,
+//            $this->db,
+//            $form_state->getValue('process_limit', 0),
+//          ],
+//        ],
+//        [
+//          [$class, 'downloadPageData'],
+//          [
+//            $form_state->getValue('count', 0),
+//          ],
+//        ],
 
       ],
       'finished' => [$class, 'finishedBatch'],
@@ -239,24 +255,23 @@ class ApiImportForm extends FormBase {
       $queue->deleteItem($worker);
     }
     // Clear out the staging table.
-    $this->connection->truncate($this::DB_STAGING)->execute();
+    $this->db->truncate($this::DB_STAGING)->execute();
   }
 
   /**
    * Batch operation to download all of the Items data from Api and store
    * it in the ibt_api_staging database table.
    *
-   * @param $api
-   * @param $db
-   * @param $api_count
-   * @param $limit
+   * @param \Drupal\ibt_api\Connection\ApiConnection $api
+   * @param string $endpoint
+   * @param integer $channel_id
+   * @param integer $api_count
+   * @param integer $limit
    * @param $context
    *
    * @throws \Exception
    */
-  public static function downloadChannelData($api, $database, $api_count, $limit, &$context) {
-//    $database = Database::getConnection();
-//    $api = new ApiConnection();
+  public static function downloadChannelData($api, $endpoint, $channel_id, $api_count, $limit, &$context) {
     if (!isset($context['sandbox']['progress'])) {
       $context['sandbox'] = [
         'progress' => 0,
@@ -266,20 +281,18 @@ class ApiImportForm extends FormBase {
       $context['results']['downloaded'] = 0;
     }
     $sandbox = &$context['sandbox'];
-
-    $data   = $api->queryEndpoint('endpoint.content', [
+    $data   = $api->queryEndpoint($endpoint . '/cloudcasts', [
       'limit'     => $sandbox['limit'],
       'url_query' => [
         'offset' => (string) $sandbox['progress'],
         'sort'   => 'gid asc',
       ],
     ]);
-    $t=1;
-
     if (empty($data->data)) {
       # no results.
     }
     else {
+      $database = Database::getConnection();
       foreach ($data->data as $data) {
         if (empty($data->slug)) {
           $msg = t('Empty Slug at progress @p for the data:', [
@@ -296,81 +309,7 @@ class ApiImportForm extends FormBase {
           ->insertFields([
             'slug'  => $data->slug,
             'data' => serialize($data),
-          ])
-          ->updateFields(['data' => serialize($data)])
-          ->execute()
-        ;
-        $context['results']['downloaded']++;
-        $sandbox['progress']++;
-        $context['message'] = '<h2>' . t('Downloading API data...') . '</h2>';
-        $context['message'] .= t('Queried @c of @t entries.', [
-          '@c' => $sandbox['progress'],
-          '@t' => $sandbox['max'],
-        ]);
-      }
-
-    }
-
-    if ($sandbox['max']) {
-      $context['finished'] = $sandbox['progress'] / $sandbox['max'];
-    }
-    // If completely done downloading, set the last time it was done, so that
-    // cron can keep the data up to date with smaller queries
-//    if ($context['finished'] >= 1) {
-//      $last_time = \Drupal::time()->getRequestTime();
-//      \Drupal::state()->set('iguana.tea_import_last', $last_time);
-//    }
-
-  }
-
-  public static function downloadPageData($api_count, &$context) {
-    $database = Database::getConnection();
-    $query = $database->select('node', 'n');
-    $query->addField('n', 'nid');
-    $query->join('node__field_slug', 's', 's.entity_id = n.nid');
-    $query->join('node__field_key', 'k', 'k.entity_id = n.nid');
-    $query->condition('n.type', 'blablabla');
-    $results = $query->execute()->fetchAllKeyed('n.nid');
-    $t=1;
-//
-
-    if (!isset($context['sandbox']['progress'])) {
-      $context['sandbox'] = [
-        'progress' => 0,
-        'max'      => $api_count,
-      ];
-      $context['results']['downloaded'] = 0;
-    }
-    $sandbox = &$context['sandbox'];
-
-    $api = new ApiConnection();
-    $data   = $api->queryEndpoint('endpoint.content', [
-      'limit'     => $sandbox['limit'],
-      'url_query' => [
-        'offset' => (string) $sandbox['progress'],
-        'sort'   => 'gid asc',
-      ],
-    ]);
-    if (empty($data->data)) {
-      # no results.
-    }
-    else {
-      foreach ($data->data as $data) {
-        if (empty($data->slug)) {
-          $msg = t('Empty Slug at progress @p for the data:', [
-            '@p' => $sandbox['progress'],
-          ]);
-          $msg .= '<br /><pre>' . print_r($data, TRUE) . '</pre>';
-          \Drupal::logger('ibt_api')->warning($msg);
-          $sandbox['progress']++;
-          continue;
-        }
-        // Store the staging data.
-        $database->merge(self::DB_STAGING)
-          ->key('slug')
-          ->insertFields([
-            'slug'  => $data->slug,
-            'data' => serialize($data),
+            'channel_id' => $channel_id,
           ])
           ->updateFields(['data' => serialize($data)])
           ->execute()
@@ -401,13 +340,16 @@ class ApiImportForm extends FormBase {
   /**
    * Batch operation to extra data from the ibt_api_staging table and
    * save it to a new node or one found via GID.
+   *
+   * @param \Drupal\ibt_api\Connection\ApiConnection $api
+   * @param \Drupal\Core\Database\Connection $database
+   * @param string $endpoint
    * @param $limit
    * @param $context
    *
    * @throws \Exception
    */
-  public static function processItems($limit, &$context) {
-    $url  = \Drupal::config('ibt_api')->get('endpiont_overview');
+  public static function processItems($api, $database, $endpoint, $limit, &$context) {
     $connection = Database::getConnection();
     if (!isset($context['sandbox']['progress'])) {
       $context['sandbox'] = [
@@ -434,14 +376,14 @@ class ApiImportForm extends FormBase {
     foreach ($query->execute()->fetchAllKeyed() as $slug => $row) {
       $data   = unserialize($row);
       $node_saved = $utility->processApiData('node', 'audio', $data);
-      $connection->merge('ibt_api_previous')
+      $connection->merge(self::DB_IMPORTED)
         ->key('slug')
         ->insertFields([
           'slug'  => $slug,
         ])->execute();
       $query = $connection->delete(self::DB_STAGING);
-      $query->condition('slug', $slug);
-      $query->execute();
+//      $query->condition('slug', $slug);
+//      $query->execute();
 
       $sandbox['progress']++;
       $context['results']['items']++;
@@ -471,6 +413,80 @@ class ApiImportForm extends FormBase {
       $context['finished'] = $sandbox['progress'] / $sandbox['max'];
     }
   }
+
+
+  /**
+   * @param \Drupal\ibt_api\Connection\ApiConnection $api
+   * @param \Drupal\Core\Database\Connection $database
+   * @param string $endpoint
+   * @param $api_count
+   * @param $context
+   *
+   * @throws \Exception
+   */
+//  public static function downloadPageData($api, $database, $endpoint, $api_count, &$context) {
+//    if (!isset($context['sandbox']['progress'])) {
+//      $context['sandbox'] = [
+//        'progress' => 0,
+//        'max'      => $api_count,
+//      ];
+//      $context['results']['downloaded'] = 0;
+//    }
+//    $sandbox = &$context['sandbox'];
+//    $data   = $api->queryEndpoint($endpoint, [
+//      'limit'     => $sandbox['limit'],
+//      'url_query' => [
+//        'offset' => (string) $sandbox['progress'],
+//        'sort'   => 'gid asc',
+//      ],
+//    ]);
+//    if (empty($data->data)) {
+//      # no results.
+//    }
+//    else {
+//      foreach ($data->data as $data) {
+//        if (empty($data->slug)) {
+//          $msg = t('Empty Slug at progress @p for the data:', [
+//            '@p' => $sandbox['progress'],
+//          ]);
+//          $msg .= '<br /><pre>' . print_r($data, TRUE) . '</pre>';
+//          \Drupal::logger('ibt_api')->warning($msg);
+//          $sandbox['progress']++;
+//          continue;
+//        }
+//        // Store the staging data.
+//        $database->merge(self::DB_STAGING)
+//          ->key('slug')
+//          ->insertFields([
+//            'slug'  => $data->slug,
+//            'data' => serialize($data),
+//          ])
+//          ->updateFields(['data' => serialize($data)])
+//          ->execute()
+//        ;
+//        $context['results']['downloaded']++;
+//        $sandbox['progress']++;
+//        $context['message'] = '<h2>' . t('Downloading API data...') . '</h2>';
+//        $context['message'] .= t('Queried @c of @t entries.', [
+//          '@c' => $sandbox['progress'],
+//          '@t' => $sandbox['max'],
+//        ]);
+//      }
+//
+//    }
+//
+//    if ($sandbox['max']) {
+//      $context['finished'] = $sandbox['progress'] / $sandbox['max'];
+//    }
+//    // If completely done downloading, set the last time it was done, so that
+//    // cron can keep the data up to date with smaller queries
+//    //    if ($context['finished'] >= 1) {
+//    //      $last_time = \Drupal::time()->getRequestTime();
+//    //      \Drupal::state()->set('iguana.tea_import_last', $last_time);
+//    //    }
+//
+//  }
+
 
   /**
    * Reports the results of the Tea import operations.
