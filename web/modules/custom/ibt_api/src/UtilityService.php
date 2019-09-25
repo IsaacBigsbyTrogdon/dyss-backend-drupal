@@ -38,6 +38,12 @@ class UtilityService {
 
   const STORE_KEY_IMPORT_CHANNEL_ENDPOINT = 'import_channel_endpoint';
 
+  const STORE_KEY_IMPORT_PROCESSED_ITEMS = 'import_channel_audio_ids';
+
+  const DB_STAGING = 'ibt_api_staging';
+
+  const DB_IMPORTED = 'ibt_api_imported';
+
   /**
    * @var \Drupal\Core\Logger\LoggerChannelFactoryInterface
    */
@@ -134,27 +140,65 @@ class UtilityService {
    * @param $type
    * @param $bundle
    * @param $data
-   * @param null $channel
    *
    * @return \Drupal\Core\Entity\EntityInterface|\Drupal\node\Entity\Node|mixed|null
    * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
    * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
+   * @throws \Drupal\Core\Entity\EntityStorageException
    */
-  public function processApiData($type, $bundle, $data) {
+  public function processApiChannelData($type, $bundle, $data) {
     $entity = NULL;
+    $create_entity = FALSE;
     switch ($bundle) {
       case 'audio':
-        if ($entity = $this->entityExists($type, $bundle, $data->slug)) {
-          $this->update($type, $bundle, $entity, $data);
+        /** @var \Drupal\node\Entity\Node $entity */
+        if (!$entity = $this->entityExists($type, $bundle, $data->slug)) {
+          $create_entity = TRUE;
+          $entity = Node::create([
+            'type' => $bundle,
+            'title' => $data->name,
+            'uid' => $this->currentUser->id(),
+          ]);
         }
-        else {
-//          $data->channel = $channel;
-          $force = TRUE;
-          $entity = $this->createNode($bundle, $data, $force);
+        if (!empty($data->tags)) {
+          $entity->set('field_tags', []);
+          foreach ($data->tags as $tag) {
+            if (!$term = $this->entityExists('taxonomy_term', 'tag', $tag->name)) {
+              $term = $this->createTerm('tags', $tag);
+              $this->messenger->addStatus(t('Term created with tid: @tid', ['@tid' => $term->id()]));
+            }
+            $entity->get('field_tags')->appendItem($term);
+          }
+          unset($data->tags);
         }
+        if (!empty($data->pictures->extra_large)) {
+          $entity->set('field_images', []);
+          if (!$media_image = $this->entityExists('media', 'image', $data->pictures->extra_large)) {
+            $media_image = $this->createMedia('image', ['url' => $data->pictures->extra_large, 'name' => $data->name]);
+            $this->messenger->addStatus(t('Media created with mid: @mid', ['@mid' => $media_image->id()]));
+          }
+          $entity->get('field_images')->appendItem($media_image);
+          unset($data->pictures);
+        }
+        if (!empty($data->channel)) {
+          if ($channel = $this->getEntityBy('node', 'nid', $data->channel)) {
+            $entity->set('field_channels', []);
+            $entity->get('field_channels')->appendItem($channel);
+          }
+          unset($data->channel);
+        }
+        foreach($data as $key => $value) {
+          if ($entity->hasField('field_' . $key)) {
+            $entity->set('field_' . $key, $value);
+          }
+        }
+        $entity->save();
+        $processed = $this->getStore(self::STORE_KEY_IMPORT_PROCESSED_ITEMS);
+        $processed += $entity->id();
+        $this->setStore(self::STORE_KEY_IMPORT_PROCESSED_ITEMS, $processed);
         break;
     }
-    return $entity;
+    return $create_entity ?: $entity;
   }
 
   public function getChannelOptions() : array {
@@ -181,23 +225,29 @@ class UtilityService {
           case 'audio':
             $entityManager = $this->entityTypeManager->getListBuilder($type);
             $result = $entityManager
-            ->getStorage()
-            ->loadByProperties([
-              'type' => $bundle,
-              'field_slug' => $value,
-            ]);
+              ->getStorage()
+              ->loadByProperties([
+                'type' => $bundle,
+                'field_slug' => $value,
+              ]);
             $id = array_keys($result);
             $id = reset($id);
-            $entity = $this->entityTypeManager->getStorage($type)
-              ->load($id);
+            try {
+              $entity = $this->entityTypeManager->getStorage($type)
+                ->load($id);
+            }
+            catch (\Exception $error) {
+              $this->loggerFactory->get($this::MODULE_NAME)->alert(t('@err', ['@err' => $error]));
+              $this->messenger->addWarning(t('Unable to load entity with id ', ['@key', $id]));
+            }
             break;
         }
         break; // node
       case 'taxonomy_term':
-        $entity = $this->get($type, 'name', $value);
+        $entity = $this->getEntityBy($type, 'name', $value);
         break;
       case 'media':
-        $entity = $this->get($type, 'field_url', $value);
+        $entity = $this->getEntityBy($type, 'field_url', $value);
         break;
 
       case 'file':
@@ -208,56 +258,21 @@ class UtilityService {
         $result = $query->execute()->fetchAllKeyed();
         $id = array_keys($result);
         $id = reset($id);
-        $entity = $this->entityTypeManager->getStorage($type)
-          ->load($id);
+        try {
+          $entity = $this->entityTypeManager->getStorage($type)
+            ->load($id);
+        }
+        catch (\Exception $error) {
+          $this->loggerFactory->get($this::MODULE_NAME)->alert(t('@err', ['@err' => $error]));
+          $this->messenger->addWarning(t('Unable to load entity with id @key', ['@key', $id]));
+        }
         break;
     }
     return $entity;
   }
 
   private function createNode($bundle, $data, $force = NULL) {
-    $node = NULL;
-    // @Todo: delete existing node if $force == TRUE;
-    switch ($bundle) {
-      case 'audio':
-        /** @var \Drupal\node\Entity\Node $node */
-        $node = Node::create([
-          'type' => $bundle,
-          'title' => $data->name,
-          'uid' => $this->currentUser->id(),
-        ]);
-        $t=1;
-        if (!empty($data->tags)) {
-          foreach ($data->tags as $tag) {
-            if (!$term = $this->entityExists('node', 'channel', $tag->name)) {
-              $term = $this->createTerm('tags', $tag);
-              $this->messenger->addStatus(t('Term created with tid: @tid', ['@mid' => $term->id()]));
-            }
-            $node->get('field_tags')->appendItem($term);
-          }
-          unset($data->tags);
-        }
-        if (!empty($data->pictures->extra_large)) {
-          if (!$media_image = $this->entityExists('media', 'image', $data->pictures->extra_large)) {
-            $media_image = $this->createMedia('image', ['url' => $data->pictures->extra_large, 'name' => $data->name]);
-            $this->messenger->addStatus(t('Media created with mid: @mid', ['@mid' => $media_image->id()]));
-          }
-          $node->get('field_images')->appendItem($media_image);
-          unset($data->pictures);
-        }
-        if (!empty($data->channel) && $data->channel instanceof Term) {
-          $node->get('field_channels')->appendItem($data->channel);
-          unset($data->channel);
-        }
-        foreach($data as $key => $value) {
-          if ($node->hasField('field_' . $key)) {
-            $node->set('field_' . $key, $value);
-          }
-        }
-        $node->save();
-        break;
-    }
-    return $node;
+
   }
 
   private function createMedia($bundle, $data) {
@@ -312,17 +327,20 @@ class UtilityService {
    * @param $type
    * @param $prop
    * @param $value
+   * @param bool $single
    *
    * @return \Drupal\Core\Entity\EntityInterface|mixed|null
    * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
    * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
    */
-  public function get($type, $prop, $value) {
+  public function getEntityBy($type, $prop, $value, $single = TRUE) {
     $item = NULL;
+    $result = [];
     switch ($type) {
       case 'taxonomy_term':
       case 'file':
       case 'media':
+      case 'node':
         if (!$result = $this->entityTypeManager->getStorage($type)->loadByProperties([$prop => $value])) {
           return NULL;
         }
@@ -331,7 +349,7 @@ class UtilityService {
         }
         break;
     }
-    return $item;
+    return $single ? $item : $result;
   }
 
 
@@ -379,35 +397,10 @@ class UtilityService {
   }
 
   /**
-   * @param $type
-   * @param $bundle
-   * @param $entity
-   * @param $data
-   */
-  private function update($type, $bundle, $entity, $data) {
-    switch ($type) {
-      case 'node':
-        switch ($bundle) {
-          case 'audio':
-            // @todo;
-            $entity->set('field_created_time', $data->created_time);
-            $entity->set('created', strtotime($data->created_time));
-            $entity->save();
-            break;
-        }
-
-        break;
-    }
-  }
-
-  /**
    * @param $vid
    * @param $data
    *
    * @return array|\Drupal\Core\Entity\EntityInterface
-   * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
-   * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
-   * @throws \Drupal\Core\Entity\EntityStorageException
    */
   private function createTerm($vid, $data) {
     switch ($vid) {
@@ -419,8 +412,14 @@ class UtilityService {
           'field_url' => $data->url,
           'field_key' => $data->key,
         ];
-        $term = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->create($term);
-        $term->save();
+        try {
+          $term = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->create($term);
+          $term->save();
+        }
+        catch (\Exception $error) {
+          $this->loggerFactory->get($this::MODULE_NAME)->alert(t('@err', ['@err' => $error]));
+          $this->messenger->addWarning(t('Save term with name @key', ['@key', $data->name]));
+        }
         return $term;
         break;
     }
