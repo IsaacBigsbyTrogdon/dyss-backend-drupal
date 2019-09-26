@@ -34,6 +34,10 @@ class UtilityService {
 
   const FIELD_ENDPOINTS = 'field_endpoints';
 
+  const FIELD_URL = 'field_url';
+
+  const FIELD_SCHEMA = 'field_schema';
+
   const STORE_KEY_IMPORT_CHANNEL = 'import_channel';
 
   const STORE_KEY_IMPORT_CHANNEL_ENDPOINT = 'import_channel_endpoint';
@@ -83,7 +87,7 @@ class UtilityService {
   /**
    * @var \Drupal\Core\Path\PathValidatorInterface
    */
-  protected $pathValidator;
+  public $pathValidator;
   /**
    * @var \Drupal\Core\Database\Driver\mysql\Connection
    */
@@ -146,59 +150,59 @@ class UtilityService {
    * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
    * @throws \Drupal\Core\Entity\EntityStorageException
    */
-  public function processApiChannelData($type, $bundle, $data) {
-    $entity = NULL;
+  public function processApiAudio($type, $bundle, $data) {
+    $audioNode = NULL;
     $create_entity = FALSE;
     switch ($bundle) {
       case 'audio':
-        /** @var \Drupal\node\Entity\Node $entity */
-        if (!$entity = $this->entityExists($type, $bundle, $data->slug)) {
+        /** @var \Drupal\node\Entity\Node $audioNode */
+        if (!$audioNode = $this->entityExists($type, $bundle, $data->slug)) {
           $create_entity = TRUE;
-          $entity = Node::create([
+          $audioNode = Node::create([
             'type' => $bundle,
             'title' => $data->name,
             'uid' => $this->currentUser->id(),
           ]);
         }
         if (!empty($data->tags)) {
-          $entity->set('field_tags', []);
+          $audioNode->set('field_tags', []);
           foreach ($data->tags as $tag) {
             if (!$term = $this->entityExists('taxonomy_term', 'tag', $tag->name)) {
               $term = $this->createTerm('tags', $tag);
               $this->messenger->addStatus(t('Term created with tid: @tid', ['@tid' => $term->id()]));
             }
-            $entity->get('field_tags')->appendItem($term);
+            $audioNode->get('field_tags')->appendItem($term);
           }
           unset($data->tags);
         }
         if (!empty($data->pictures->extra_large)) {
-          $entity->set('field_images', []);
+          $audioNode->set('field_images', []);
           if (!$media_image = $this->entityExists('media', 'image', $data->pictures->extra_large)) {
             $media_image = $this->createMedia('image', ['url' => $data->pictures->extra_large, 'name' => $data->name]);
             $this->messenger->addStatus(t('Media created with mid: @mid', ['@mid' => $media_image->id()]));
           }
-          $entity->get('field_images')->appendItem($media_image);
+          $audioNode->get('field_images')->appendItem($media_image);
           unset($data->pictures);
         }
         if (!empty($data->channel)) {
           if ($channel = $this->getEntityBy('node', 'nid', $data->channel)) {
-            $entity->set('field_channels', []);
-            $entity->get('field_channels')->appendItem($channel);
+            $audioNode->set('field_channels', []);
+            $audioNode->get('field_channels')->appendItem($channel);
           }
           unset($data->channel);
         }
         foreach($data as $key => $value) {
-          if ($entity->hasField('field_' . $key)) {
-            $entity->set('field_' . $key, $value);
+          if ($audioNode->hasField('field_' . $key)) {
+            $audioNode->set('field_' . $key, $value);
           }
         }
-        $entity->save();
+        $audioNode->save();
         $processed = $this->getStore(self::STORE_KEY_IMPORT_PROCESSED_ITEMS);
-        $processed += $entity->id();
+        $processed[] = $audioNode->id();
         $this->setStore(self::STORE_KEY_IMPORT_PROCESSED_ITEMS, $processed);
         break;
     }
-    return $create_entity ?: $entity;
+    return $audioNode;
   }
 
   public function getChannelOptions() : array {
@@ -421,6 +425,20 @@ class UtilityService {
           $this->messenger->addWarning(t('Save term with name @key', ['@key', $data->name]));
         }
         return $term;
+        break;
+    }
+  }
+
+  /**
+   * @param $url
+   * @param $schema
+   *
+   * @return string
+   */
+  public function getAudioEndpointFromUrl($url, $schema) : string {
+    switch ($schema) {
+      case 'mixcloud_playlist':
+        return str_replace('www', 'api', $url);
         break;
     }
   }

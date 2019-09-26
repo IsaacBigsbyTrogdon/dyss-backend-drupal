@@ -77,6 +77,8 @@ class ApiImportForm extends FormBase {
 
   const FIELD_LABEL_API_LIMIT = 'download_limit';
 
+  const FIELD_LABEL_API_ITEM_LIMIT = 'download_item_limit';
+
   const FIELD_LABEL_PROCESS_LIMIT = 'process_limit';
 
   /**
@@ -128,6 +130,7 @@ class ApiImportForm extends FormBase {
    * @inheritDoc
    */
   public function formElements(array $form, FormStateInterface $form_state, Request $request = NULL) {
+    /** @var \Drupal\node\Entity\Node $channel */
     $channel = $this->util->getStore($this->util::STORE_KEY_IMPORT_CHANNEL);
     $enabled = isset($channel);
     $endpoint = $this->util->getStore($this->util::STORE_KEY_IMPORT_CHANNEL_ENDPOINT);
@@ -156,6 +159,17 @@ class ApiImportForm extends FormBase {
       '#disabled' => TRUE,
     ] : [];
 
+    # @TODO - use schema to trigger different download structures.
+    if ($channel->hasField($this->util::FIELD_SCHEMA)) {
+      $schema = $channel->get($this->util::FIELD_SCHEMA)->getString();
+      $elements[$this->util::FIELD_SCHEMA] = $enabled ? [
+        '#type'  => 'textfield',
+        '#title' => t('Import schema'),
+        '#value' => $schema ?? NULL,
+        '#disabled' => TRUE,
+      ] : [];
+    }
+
     $elements[$this->util::STORE_KEY_IMPORT_CHANNEL_ENDPOINT] = $enabled ? [
       '#type'  => 'textfield',
       '#title' => t('Endpoint'),
@@ -172,6 +186,13 @@ class ApiImportForm extends FormBase {
         '#options'       => $limits,
         '#default_value' => 100,
         '#description'   => t('This is the number of items the API should return each call as the operation pages through the data.'),
+      ],
+      self::FIELD_LABEL_API_ITEM_LIMIT => [
+        '#type'          => 'select',
+        '#title'         => t('API Download Item Throttle'),
+        '#options'       => $limits,
+        '#default_value' => 5,
+        '#description'   => t('Single API Calls'),
       ],
       self::FIELD_LABEL_PROCESS_LIMIT => [
         '#type'          => 'select',
@@ -221,26 +242,25 @@ class ApiImportForm extends FormBase {
     $batch = [
       'title'      => t('Downloading & Processing Api Data'),
       'operations' => [
-//        [
-//          [$helperClass, 'downloadChannelData'],
-//          [
-//            $form_state->getValue($this->util::STORE_KEY_IMPORT_CHANNEL_ENDPOINT),
-//            $form_state->getValue($this->util::STORE_KEY_IMPORT_CHANNEL),
-//            $form_state->getValue(self::FIELD_LABEL_IMPORT_COUNT),
-//            $form_state->getValue(self::FIELD_LABEL_API_LIMIT),
-//          ],
-//        ],
         [
-          [$helperClass, 'processItems'],
+          [$helperClass, 'downloadChannelData'],
           [
-            $form_state->getValue('process_limit', 0),
+            $form_state->getValue($this->util::STORE_KEY_IMPORT_CHANNEL_ENDPOINT),
+            $form_state->getValue($this->util::STORE_KEY_IMPORT_CHANNEL),
+            $form_state->getValue(self::FIELD_LABEL_IMPORT_COUNT),
+            $form_state->getValue(self::FIELD_LABEL_API_LIMIT),
+          ],
+        ],
+        [
+          [$helperClass, 'processApiChannelData'],
+          [
+            $form_state->getValue(self::FIELD_LABEL_PROCESS_LIMIT, 0),
           ],
         ],
         [
           [$helperClass, 'downloadPageData'],
           [
-            $this->util->getStore($this->util::STORE_KEY_IMPORT_CHANNEL),
-            $form_state->getValue(self::FIELD_LABEL_PROCESS_LIMIT),
+            $form_state->getValue(self::FIELD_LABEL_API_ITEM_LIMIT),
           ],
         ],
 
