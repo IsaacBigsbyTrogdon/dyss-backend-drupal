@@ -5,6 +5,7 @@ dependencies:
   config:
     - field.storage.node.field_tags
     - node.type.audio
+    - taxonomy.vocabulary.authors
     - taxonomy.vocabulary.tags
 id: node.audio.field_tags
 field_name: field_tags
@@ -20,10 +21,11 @@ settings:
   handler: 'default:taxonomy_term'
   handler_settings:
     target_bundles:
+      authors: authors
       tags: tags
     sort:
       field: name
       direction: asc
     auto_create: true
-    auto_create_bundle: ''
+    auto_create_bundle: authors
 field_type: entity_reference
