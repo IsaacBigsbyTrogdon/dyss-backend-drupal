@@ -1,0 +1,19 @@
+uuid: 741a1f0d-5b88-4e93-b3c3-70a1e453f019
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_audio_length
+    - node.type.audio
+id: node.audio.field_audio_length
+field_name: field_audio_length
+entity_type: node
+bundle: audio
+label: 'Audio length'
+description: ''
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: string

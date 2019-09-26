@@ -1,0 +1,19 @@
+uuid: de6a7778-027e-43df-9e02-3e90f18bb912
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_slug
+    - node.type.channel
+id: node.channel.field_slug
+field_name: field_slug
+entity_type: node
+bundle: channel
+label: Slug
+description: ''
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: string

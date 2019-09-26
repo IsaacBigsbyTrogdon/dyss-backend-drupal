@@ -1,0 +1,22 @@
+uuid: e826fceb-5bd0-478f-af51-fc71987a7e47
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.body
+    - node.type.channel
+  module:
+    - text
+id: node.channel.body
+field_name: body
+entity_type: node
+bundle: channel
+label: Body
+description: ''
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings:
+  display_summary: true
+field_type: text_with_summary

@@ -1,0 +1,17 @@
+uuid: af43b171-07d3-46fa-bef7-0712818d15a9
+langcode: en
+status: true
+dependencies:
+  module:
+    - menu_ui
+third_party_settings:
+  menu_ui:
+    available_menus: {  }
+    parent: ''
+name: Audio
+type: audio
+description: ''
+help: ''
+new_revision: true
+preview_mode: 0
+display_submitted: false

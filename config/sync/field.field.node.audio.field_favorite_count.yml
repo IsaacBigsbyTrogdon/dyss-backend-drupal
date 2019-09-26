@@ -1,0 +1,23 @@
+uuid: 4332158c-d01a-453f-b34c-ea50262eaf6d
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_favorite_count
+    - node.type.audio
+id: node.audio.field_favorite_count
+field_name: field_favorite_count
+entity_type: node
+bundle: audio
+label: 'Favorite count'
+description: ''
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings:
+  min: 0
+  max: null
+  prefix: ''
+  suffix: ''
+field_type: integer

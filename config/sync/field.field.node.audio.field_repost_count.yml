@@ -1,0 +1,23 @@
+uuid: 8f5ab699-82f3-4869-b06b-7a763dfb3aa3
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_repost_count
+    - node.type.audio
+id: node.audio.field_repost_count
+field_name: field_repost_count
+entity_type: node
+bundle: audio
+label: 'Repost count'
+description: ''
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings:
+  min: 0
+  max: null
+  prefix: ''
+  suffix: ''
+field_type: integer

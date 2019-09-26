@@ -1,0 +1,23 @@
+uuid: c11b7575-6356-4a05-a2d4-6c2221dd5a69
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_url
+    - node.type.audio
+  module:
+    - link
+id: node.audio.field_url
+field_name: field_url
+entity_type: node
+bundle: audio
+label: URL
+description: ''
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings:
+  link_type: 17
+  title: 1
+field_type: link

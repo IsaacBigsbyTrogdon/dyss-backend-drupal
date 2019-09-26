@@ -1,0 +1,19 @@
+uuid: 61892261-19c9-49c2-a007-950f34ee12c1
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_key
+    - node.type.channel
+id: node.channel.field_key
+field_name: field_key
+entity_type: node
+bundle: channel
+label: Key
+description: ''
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: string

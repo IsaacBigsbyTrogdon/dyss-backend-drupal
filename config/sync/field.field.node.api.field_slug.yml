@@ -1,0 +1,19 @@
+uuid: d81da7f4-ea36-46eb-bc89-566fe049a909
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_slug
+    - node.type.api
+id: node.api.field_slug
+field_name: field_slug
+entity_type: node
+bundle: api
+label: Slug
+description: ''
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: string

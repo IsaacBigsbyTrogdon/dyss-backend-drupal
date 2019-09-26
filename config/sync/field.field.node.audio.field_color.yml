@@ -1,0 +1,19 @@
+uuid: ec2360fe-2164-4092-b8d6-9ce0ebdd1e98
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_color
+    - node.type.audio
+id: node.audio.field_color
+field_name: field_color
+entity_type: node
+bundle: audio
+label: Color
+description: ''
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: string

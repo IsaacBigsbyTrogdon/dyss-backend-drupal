@@ -1,0 +1,19 @@
+uuid: 0b58e368-07ab-4db6-ad27-fa7f33edf315
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_slug
+    - node.type.audio
+id: node.audio.field_slug
+field_name: field_slug
+entity_type: node
+bundle: audio
+label: Slug
+description: ''
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: string

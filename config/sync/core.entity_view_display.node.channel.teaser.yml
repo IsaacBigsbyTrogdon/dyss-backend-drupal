@@ -1,0 +1,43 @@
+uuid: 6e55d3a0-c98f-4c8b-9950-6355da893c9a
+langcode: en
+status: true
+dependencies:
+  config:
+    - core.entity_view_mode.node.teaser
+    - field.field.node.channel.body
+    - field.field.node.channel.field_endpoints
+    - field.field.node.channel.field_images
+    - field.field.node.channel.field_key
+    - field.field.node.channel.field_schema
+    - field.field.node.channel.field_slug
+    - field.field.node.channel.field_url
+    - node.type.channel
+  module:
+    - text
+    - user
+id: node.channel.teaser
+targetEntityType: node
+bundle: channel
+mode: teaser
+content:
+  body:
+    label: hidden
+    type: text_summary_or_trimmed
+    weight: 101
+    settings:
+      trim_length: 600
+    third_party_settings: {  }
+    region: content
+  links:
+    weight: 100
+    settings: {  }
+    third_party_settings: {  }
+    region: content
+hidden:
+  field_endpoints: true
+  field_images: true
+  field_key: true
+  field_schema: true
+  field_slug: true
+  field_url: true
+  langcode: true

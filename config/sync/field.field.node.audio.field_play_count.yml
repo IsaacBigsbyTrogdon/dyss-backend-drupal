@@ -1,0 +1,23 @@
+uuid: c6aea074-3f52-465f-b1aa-b56b8971928f
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_play_count
+    - node.type.audio
+id: node.audio.field_play_count
+field_name: field_play_count
+entity_type: node
+bundle: audio
+label: 'Play count'
+description: ''
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings:
+  min: 0
+  max: null
+  prefix: ''
+  suffix: ''
+field_type: integer

@@ -1,0 +1,24 @@
+uuid: bfd677de-d6ad-4201-89da-28061f150b57
+langcode: en
+status: true
+dependencies:
+  module:
+    - node
+    - options
+id: node.field_schema
+field_name: field_schema
+entity_type: node
+type: list_string
+settings:
+  allowed_values:
+    -
+      value: mixcloud_playlist
+      label: 'Mixcloud playlist'
+  allowed_values_function: ''
+module: options
+locked: false
+cardinality: 1
+translatable: true
+indexes: {  }
+persist_with_no_fields: false
+custom_storage: false

@@ -1,0 +1,14 @@
+uuid: 0cd63657-d9b9-40a9-b3c2-8f26be220cbb
+langcode: en
+status: true
+dependencies:
+  config:
+    - user.role.importer
+  module:
+    - user
+id: user_add_role_action.importer
+label: 'Add the Importer role to the selected user(s)'
+type: user
+plugin: user_add_role_action
+configuration:
+  rid: importer

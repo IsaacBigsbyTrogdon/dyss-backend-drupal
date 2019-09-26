@@ -1,0 +1,21 @@
+uuid: 5fbc101a-bb7d-4dd9-a4cf-1ee4ee198445
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_schema
+    - node.type.channel
+  module:
+    - options
+id: node.channel.field_schema
+field_name: field_schema
+entity_type: node
+bundle: channel
+label: Schema
+description: ''
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: list_string

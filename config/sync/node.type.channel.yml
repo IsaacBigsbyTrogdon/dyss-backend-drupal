@@ -1,0 +1,17 @@
+uuid: 8232a537-05af-47ea-b1a7-f9de34f3f33d
+langcode: en
+status: true
+dependencies:
+  module:
+    - menu_ui
+third_party_settings:
+  menu_ui:
+    available_menus: {  }
+    parent: ''
+name: Channel
+type: channel
+description: ''
+help: ''
+new_revision: true
+preview_mode: 0
+display_submitted: false

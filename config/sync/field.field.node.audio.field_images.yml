@@ -1,0 +1,28 @@
+uuid: 2ca59a87-321a-4a13-a53f-15e3287ec16d
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_images
+    - media.type.image
+    - node.type.audio
+id: node.audio.field_images
+field_name: field_images
+entity_type: node
+bundle: audio
+label: Images
+description: ''
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings:
+  handler: 'default:media'
+  handler_settings:
+    target_bundles:
+      image: image
+    sort:
+      field: _none
+    auto_create: false
+    auto_create_bundle: ''
+field_type: entity_reference

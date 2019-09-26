@@ -1,0 +1,23 @@
+uuid: 4215a756-a523-4dea-ae80-ad30d1e4a72e
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_endpoints
+    - node.type.channel
+  module:
+    - link
+id: node.channel.field_endpoints
+field_name: field_endpoints
+entity_type: node
+bundle: channel
+label: Endpoints
+description: ''
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings:
+  link_type: 17
+  title: 1
+field_type: link

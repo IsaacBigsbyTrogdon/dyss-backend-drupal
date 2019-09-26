@@ -1,0 +1,14 @@
+uuid: 1803afc5-c1ce-46c1-868a-e11d81ac18f1
+langcode: en
+status: true
+dependencies:
+  config:
+    - user.role.importer
+  module:
+    - user
+id: user_remove_role_action.importer
+label: 'Remove the Importer role from the selected user(s)'
+type: user
+plugin: user_remove_role_action
+configuration:
+  rid: importer

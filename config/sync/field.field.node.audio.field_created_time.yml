@@ -1,0 +1,19 @@
+uuid: 0da7159f-6df0-4820-8ff0-259e142c0b1c
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_created_time
+    - node.type.audio
+id: node.audio.field_created_time
+field_name: field_created_time
+entity_type: node
+bundle: audio
+label: 'Created time'
+description: ''
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: string

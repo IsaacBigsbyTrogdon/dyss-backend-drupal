@@ -1,0 +1,23 @@
+uuid: fe2fb391-6a24-423c-a702-3bf68aa8cddf
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_listener_count
+    - node.type.audio
+id: node.audio.field_listener_count
+field_name: field_listener_count
+entity_type: node
+bundle: audio
+label: 'Listener count'
+description: ''
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings:
+  min: 0
+  max: null
+  prefix: ''
+  suffix: ''
+field_type: integer
