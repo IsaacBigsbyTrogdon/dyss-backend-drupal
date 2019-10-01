@@ -152,18 +152,17 @@ class UtilityService {
    */
   public function processApiAudio($type, $bundle, $data) {
     $audioNode = NULL;
-    $create_entity = FALSE;
     switch ($bundle) {
       case 'audio':
         /** @var \Drupal\node\Entity\Node $audioNode */
         if (!$audioNode = $this->entityExists($type, $bundle, $data->slug)) {
-          $create_entity = TRUE;
           $audioNode = Node::create([
             'type' => $bundle,
             'title' => $data->name,
             'uid' => $this->currentUser->id(),
           ]);
         }
+        $audioNode->set('created', strtotime($data->created_time));
         if (!empty($data->tags)) {
           $audioNode->set('field_tags', []);
           foreach ($data->tags as $tag) {
@@ -175,6 +174,21 @@ class UtilityService {
           }
           unset($data->tags);
         }
+        if (!$authors = $this->getStore('authors')) {
+          $authors = $this->entityTypeManager
+            ->getStorage('taxonomy_term')
+            ->loadByProperties(['vid' => 'authors']);
+          $this->setStore('authors', $authors);
+        }
+        /** @var \Drupal\taxonomy\Entity\Term $author */
+        $audioNode->set('field_authors', []);
+        foreach ($authors as $author) {
+          $name = $author->getName();
+          if (stripos($data->name, $name) !== false) {
+            $audioNode->get('field_authors')->appendItem($author);
+          }
+        }
+
         if (!empty($data->pictures->extra_large)) {
           $audioNode->set('field_images', []);
           if (!$media_image = $this->entityExists('media', 'image', $data->pictures->extra_large)) {
@@ -209,6 +223,7 @@ class UtilityService {
     $query = $this->database->select('node_field_data', 'n');
     $query->fields('n', ['nid', 'title']);
     $query->condition('n.type', 'channel');
+    $query->condition('n.status', 1);
     return $query->execute()->fetchAllKeyed();
   }
 

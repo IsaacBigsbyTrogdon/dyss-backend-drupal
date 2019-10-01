@@ -103,7 +103,6 @@ class ApiImportForm extends FormBase {
       if ($node->bundle() === 'channel' && $node->hasField($this->util::FIELD_ENDPOINTS)) {
         if ($endpoints = $node->get($this->util::FIELD_ENDPOINTS)->getValue()) {
           $endpoint = reset($endpoints);
-  //        if (!isset($endpoint['uri'])) return FALSE;
           if (isset($endpoint['uri'])) {
             if (UrlHelper::isValid($endpoint['uri'])) {
               $this->util->setStore($this->util::STORE_KEY_IMPORT_CHANNEL, $node);
@@ -117,6 +116,7 @@ class ApiImportForm extends FormBase {
     $response = new AjaxResponse();
     $response->addCommand(new ReplaceCommand(NULL, $form));
     return $response;
+//    return $form;
   }
 
   /**
@@ -149,7 +149,8 @@ class ApiImportForm extends FormBase {
       '#ajax' => [
         'callback' => [$this, 'ajaxChannelUpdate'],
         'event' => 'change',
-        'wrapper' => self::FORM_WRAPPER_ID
+        'wrapper' => self::FORM_WRAPPER_ID,
+        'method' => 'replace'
       ],
     ];
     $elements[self::FIELD_LABEL_IMPORT_COUNT] = $enabled ? [
@@ -216,11 +217,11 @@ class ApiImportForm extends FormBase {
 
     return $form = [
       'items' => $elements,
-//      '#prefix' => '<div id="' . self::FORM_WRAPPER_ID . '">',
-//      '#suffix' => '</div>',
+      '#prefix' => '<div id="' . self::FORM_WRAPPER_ID . '">',
+      '#suffix' => '</div>',
       '#type' => 'container',
       '#attributes' => [
-        'id' => self::FORM_WRAPPER_ID,
+//        'id' => self::FORM_WRAPPER_ID,
       ],
     ];
 

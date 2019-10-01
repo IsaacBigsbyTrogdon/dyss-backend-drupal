@@ -170,6 +170,7 @@ class ApiImportHelper {
     if ($context['finished'] === 1) {
       $query = $connection->delete($utility::DB_STAGING);
       $query->execute();
+      $utility->deleteStore('authors');
     }
   }
 

@@ -1,0 +1,5 @@
+name: 'IBT Audio'
+type: module
+description: 'Audio module.'
+core: 8.x
+package: 'Custom'

@@ -1,0 +1,56 @@
+<?php
+
+/**
+ * @file
+ * Contains ibt_audio.module.
+ */
+
+use Drupal\Core\Routing\RouteMatchInterface;
+
+/**
+ * Implements hook_form_alter().
+ */
+function ibt_audio_form_views_exposed_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state) {
+  if (isset($form['#id'])) {
+    switch ($form['#id']) {
+      case 'views-exposed-form-content-audio-page':
+        if (empty(\Drupal::hasService('ibt_api.utility')))
+          continue;
+        if (empty($form['channels']))
+          continue;
+        $form['channels']['#type'] = 'select2';
+        $form['channels']['#attached']['library'][] = 'select2/select2.min';
+        $form['channels']['#options'] = \Drupal::service('ibt_api.utility')->getChannelOptions();;
+        $form['authors']['#type'] = 'select2';
+        break;
+    }
+  }
+
+}
+
+/**
+ * Implements hook_help().
+ */
+function ibt_audio_help($route_name, RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    // Main module help for the ibt_audio module.
+    case 'help.page.ibt_audio':
+      $output = '';
+      $output .= '<h3>' . t('About') . '</h3>';
+      $output .= '<p>' . t('Audio module.') . '</p>';
+      return $output;
+
+    default:
+  }
+}
+
+/**
+ * Implements hook_theme().
+ */
+function ibt_audio_theme() {
+  return [
+    'ibt_audio' => [
+      'render element' => 'children',
+    ],
+  ];
+}
