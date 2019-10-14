@@ -129,7 +129,10 @@ class DataProcessForm extends FormBase {
       'title'      => t('Downloading & Processing Api Data'),
       'operations' => [
         [
-          [$helperClass, 'ProcessData'],
+          [$helperClass, 'deleteItems'], [],
+        ],
+        [
+          [$helperClass, 'processData'],
           [
             $form_state->getValue('process_name'),
           ],

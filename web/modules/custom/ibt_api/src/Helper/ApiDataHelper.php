@@ -4,10 +4,29 @@ namespace Drupal\ibt_api\Helper;
 
 use Drupal\Core\Database\Database;
 use Drupal\node\Entity\Node;
+use Drupal\Core\Entity\EntityStorageException;
+use Drupal\taxonomy\Entity\Term;
 
 class ApiDataHelper {
 
-  public static function ProcessData($process, &$context) {
+  public static function deleteItems(&$context) {
+    /** @var \Drupal\ibt_api\UtilityService $utility */
+    $utility = \Drupal::service('ibt_api.utility');
+    /** @var \Drupal\taxonomy\Entity\Term $dyssTerm */
+    $dyssTerm = $utility->getEntityBy('taxonomy_term', 'name', 'Dyssembler');
+    if ($dyssTerm instanceof Term) {
+      try {
+        $dyssTerm->delete();
+        \Drupal::messenger()->addStatus('Successfully deleted dyss');
+      }
+      catch (EntityStorageException $exception) {
+
+      }
+
+    }
+  }
+
+  public static function processData($process, &$context) {
     /** @var \Drupal\ibt_api\UtilityService $utility */
     $utility = \Drupal::service('ibt_api.utility');
     $connection = Database::getConnection();
@@ -40,6 +59,7 @@ class ApiDataHelper {
         foreach ($results as $nid => $row) {
           $sub = '';
           $part = NULL;
+          $sequence = NULL;
           $string = $row->title ?? 'NULL';
           if (stripos($string, 'dyssembler') === 0) {
             $string = str_replace('Dyssember #', '', $string);
@@ -54,7 +74,8 @@ class ApiDataHelper {
               && ($array[0] === 'part' || $array[0] === 'Part')
               && isset($array[1])
             ) {
-              $part = $array[0] . ' ' . $array[1];
+              $sequence = $array[1];
+              $part = 'part ' . $sequence;
               unset($array[0]);
               unset($array[1]);
               $array = array_values($array);
@@ -97,15 +118,16 @@ class ApiDataHelper {
             $node = $utility->entityTypeManager->getStorage('node')
               ->load($row->nid);
             $node->set('field_number', $number);
+            $node->set('field_sequence', $sequence);
             $node->set('field_sub_headline', $sub);
             $node->set('title', $title);
             if ($nodeSaved = $node->save()) {
-              unset($title);
-              unset($sub);
-              unset($number);
             }
             else
               $messenger->addError(t('Error saving node @nid', ['@nid' => $node->id()]));
+            unset($title);
+            unset($sub);
+            unset($number);
           }
 
           $sandbox['progress']++;
@@ -113,7 +135,6 @@ class ApiDataHelper {
           if (isset($nodeSaved)) {
             $context['results']['nodes']++;
           }
-
           // Build a message so this isn't entirely boring for admins
           $msg = '<h2>' . t('Processing Nodes...') . '</h2>';
           $msg .= t('Processed @p of @t items, @n new & @u updated', [
