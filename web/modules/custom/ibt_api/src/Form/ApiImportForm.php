@@ -161,7 +161,7 @@ class ApiImportForm extends FormBase {
     ] : [];
 
     # @TODO - use schema to trigger different download structures.
-    if ($channel->hasField($this->util::FIELD_SCHEMA)) {
+    if ($channel && $channel->hasField($this->util::FIELD_SCHEMA)) {
       $schema = $channel->get($this->util::FIELD_SCHEMA)->getString();
       $elements[$this->util::FIELD_SCHEMA] = $enabled ? [
         '#type'  => 'textfield',

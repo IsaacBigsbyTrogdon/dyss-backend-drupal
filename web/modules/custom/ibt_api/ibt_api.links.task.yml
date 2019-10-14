@@ -6,9 +6,9 @@ ibt_api.overview:
 ibt_api.import:
   title: Api Import
   route_name: ibt_api.import
-  base_route: ibt_api.overview
+  base_route: ibt_api.import
 
-ibt_api.configuration:
-  title: Configure
-  route_name: ibt_api.configuration
-  base_route: ibt_api.overview
+ibt_api.process:
+  title: Process API Data
+  route_name: ibt_api.process
+  base_route: ibt_api.process

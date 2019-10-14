@@ -9,7 +9,7 @@ ibt_api.import:
   route_name: ibt_api.import
   parent: ibt_api.overview
 
-ibt_api.configuration:
-  title: Configure
-  route_name: ibt_api.configuration
+ibt_api.process:
+  title: Process Data
+  route_name: ibt_api.process
   parent: ibt_api.overview

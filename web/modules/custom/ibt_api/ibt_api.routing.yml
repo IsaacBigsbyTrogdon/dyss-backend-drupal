@@ -4,7 +4,7 @@ ibt_api.overview:
     _controller: '\Drupal\ibt_api\Controller\ApiOverviewController::showOverview'
     _title: 'Api API Status Report'
   requirements:
-    _permission: 'ibt_api tea import'
+    _permission: 'administer content'
   options:
     _admin_route: TRUE
 
@@ -14,23 +14,16 @@ ibt_api.import:
     _form: '\Drupal\ibt_api\Form\ApiImportForm'
     _title: 'Api API: Api Import'
   requirements:
-    _permission: 'ibt_api mixcloud import'
+    _permission: 'administer content'
   options:
     _admin_route: TRUE
 
-ibt_api.configuration:
-  path: '/admin/config/services/api/config'
+ibt_api.process:
+  path: '/admin/config/services/api/process'
   defaults:
-    _form: '\Drupal\ibt_api\Form\ApiConfigurationForm'
-    _title: 'mixcloudApi API Configuration'
+    _form: '\Drupal\ibt_api\Form\DataProcessForm'
+    _title: 'API Data process form'
   requirements:
-    _permission: 'ibt_api admin config'
+    _permission: 'administer content'
   options:
     _admin_route: TRUE
-ibt_api.default_form:
-  path: '/ibt_api/form/default'
-  defaults:
-    _form: '\Drupal\ibt_api\Form\DefaultForm'
-    _title: 'DefaultForm'
-  requirements:
-    _access: 'TRUE'
