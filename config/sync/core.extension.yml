@@ -31,6 +31,7 @@ module:
   help: 0
   history: 0
   ibt_api: 0
+  ibt_audio: 0
   image: 0
   jsonapi: 0
   jsonapi_extras: 0

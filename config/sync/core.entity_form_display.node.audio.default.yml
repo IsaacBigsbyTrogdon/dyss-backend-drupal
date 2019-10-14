@@ -5,6 +5,7 @@ dependencies:
   config:
     - field.field.node.audio.body
     - field.field.node.audio.field_audio_length
+    - field.field.node.audio.field_authors
     - field.field.node.audio.field_channels
     - field.field.node.audio.field_color
     - field.field.node.audio.field_created_time
@@ -12,9 +13,12 @@ dependencies:
     - field.field.node.audio.field_images
     - field.field.node.audio.field_key
     - field.field.node.audio.field_listener_count
+    - field.field.node.audio.field_number
     - field.field.node.audio.field_play_count
     - field.field.node.audio.field_repost_count
+    - field.field.node.audio.field_sequence
     - field.field.node.audio.field_slug
+    - field.field.node.audio.field_sub_headline
     - field.field.node.audio.field_tags
     - field.field.node.audio.field_url
     - node.type.audio
@@ -50,6 +54,15 @@ content:
       placeholder: ''
     third_party_settings: {  }
     type: string_textfield
+    region: content
+  field_authors:
+    weight: 137
+    settings:
+      match_operator: CONTAINS
+      size: 60
+      placeholder: ''
+    third_party_settings: {  }
+    type: entity_reference_autocomplete
     region: content
   field_channels:
     weight: 135
@@ -105,6 +118,13 @@ content:
     third_party_settings: {  }
     type: number
     region: content
+  field_number:
+    weight: 138
+    settings:
+      placeholder: ''
+    third_party_settings: {  }
+    type: number
+    region: content
   field_play_count:
     weight: 132
     settings:
@@ -119,8 +139,23 @@ content:
     third_party_settings: {  }
     type: number
     region: content
+  field_sequence:
+    weight: 140
+    settings:
+      placeholder: ''
+    third_party_settings: {  }
+    type: number
+    region: content
   field_slug:
     weight: 123
+    settings:
+      size: 60
+      placeholder: ''
+    third_party_settings: {  }
+    type: string_textfield
+    region: content
+  field_sub_headline:
+    weight: 139
     settings:
       size: 60
       placeholder: ''

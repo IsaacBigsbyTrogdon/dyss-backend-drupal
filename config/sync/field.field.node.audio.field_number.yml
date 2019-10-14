@@ -1,0 +1,23 @@
+uuid: cfe5b79d-c5f1-44e0-b48e-e219f555983e
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_number
+    - node.type.audio
+id: node.audio.field_number
+field_name: field_number
+entity_type: node
+bundle: audio
+label: Number
+description: ''
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings:
+  min: null
+  max: null
+  prefix: ''
+  suffix: ''
+field_type: integer

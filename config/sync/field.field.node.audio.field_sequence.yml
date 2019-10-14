@@ -1,0 +1,23 @@
+uuid: f798d708-9501-46b2-9c43-7b5e04903267
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_sequence
+    - node.type.audio
+id: node.audio.field_sequence
+field_name: field_sequence
+entity_type: node
+bundle: audio
+label: Sequence
+description: ''
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings:
+  min: null
+  max: null
+  prefix: ''
+  suffix: ''
+field_type: integer

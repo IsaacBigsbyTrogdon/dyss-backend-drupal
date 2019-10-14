@@ -1,29 +1,29 @@
-uuid: cf2f9d8f-3610-4c29-965f-6cd20caf2c33
+uuid: f1b6949e-1400-4a27-b3ae-166310c86596
 langcode: en
 status: true
 dependencies:
   config:
-    - field.storage.node.field_tags
+    - field.storage.node.field_authors
     - node.type.audio
-    - taxonomy.vocabulary.tags
-id: node.audio.field_tags
-field_name: field_tags
+    - taxonomy.vocabulary.authors
+id: node.audio.field_authors
+field_name: field_authors
 entity_type: node
 bundle: audio
-label: Tags
+label: Authors
 description: ''
 required: false
-translatable: true
+translatable: false
 default_value: {  }
 default_value_callback: ''
 settings:
   handler: 'default:taxonomy_term'
   handler_settings:
     target_bundles:
-      tags: tags
+      authors: authors
     sort:
       field: name
       direction: asc
-    auto_create: true
-    auto_create_bundle: authors
+    auto_create: false
+    auto_create_bundle: ''
 field_type: entity_reference
