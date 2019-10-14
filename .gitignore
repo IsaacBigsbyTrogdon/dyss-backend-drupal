@@ -29,3 +29,4 @@ node_modules
 *.sql
 *.zip
 *.tar.gz
+*.sql.gz
