@@ -9,6 +9,7 @@ dependencies:
     - field.field.node.audio.field_channels
     - field.field.node.audio.field_color
     - field.field.node.audio.field_created_time
+    - field.field.node.audio.field_data_raw
     - field.field.node.audio.field_favorite_count
     - field.field.node.audio.field_images
     - field.field.node.audio.field_key
@@ -77,6 +78,13 @@ content:
       link_to_entity: false
     third_party_settings: {  }
     type: string
+    region: content
+  field_data_raw:
+    weight: 121
+    label: above
+    settings: {  }
+    third_party_settings: {  }
+    type: basic_string
     region: content
   field_favorite_count:
     weight: 104

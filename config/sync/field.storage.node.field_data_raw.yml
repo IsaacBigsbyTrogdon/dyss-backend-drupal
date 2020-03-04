@@ -1,0 +1,19 @@
+uuid: a55e1120-e8b4-4800-ba9f-f65ce391c4c5
+langcode: en
+status: true
+dependencies:
+  module:
+    - node
+id: node.field_data_raw
+field_name: field_data_raw
+entity_type: node
+type: string_long
+settings:
+  case_sensitive: false
+module: core
+locked: false
+cardinality: 1
+translatable: true
+indexes: {  }
+persist_with_no_fields: false
+custom_storage: false

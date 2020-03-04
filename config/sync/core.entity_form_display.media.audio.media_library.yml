@@ -23,6 +23,7 @@ content:
 hidden:
   created: true
   field_media_audio_file: true
+  field_title: true
   name: true
   path: true
   status: true

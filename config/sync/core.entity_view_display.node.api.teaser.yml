@@ -28,4 +28,10 @@ content:
     third_party_settings: {  }
     region: content
 hidden:
+  field_endpoints: true
+  field_images: true
+  field_key: true
+  field_schema: true
+  field_slug: true
+  field_url: true
   langcode: true

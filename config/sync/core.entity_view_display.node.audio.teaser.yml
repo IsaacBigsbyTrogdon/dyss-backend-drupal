@@ -28,4 +28,21 @@ content:
     third_party_settings: {  }
     region: content
 hidden:
+  field_audio_length: true
+  field_authors: true
+  field_channels: true
+  field_color: true
+  field_created_time: true
+  field_favorite_count: true
+  field_images: true
+  field_key: true
+  field_listener_count: true
+  field_number: true
+  field_play_count: true
+  field_repost_count: true
+  field_sequence: true
+  field_slug: true
+  field_sub_headline: true
+  field_tags: true
+  field_url: true
   langcode: true

@@ -1,4 +1,0 @@
-ibt_api:
-  endpoint:
-    overview: 'http://api.mixcloud.com/BCR_Radio/playlists/dyssembler-season-2/'
-    content: 'http://api.mixcloud.com/BCR_Radio/playlists/dyssembler-season-2/cloudcasts/'

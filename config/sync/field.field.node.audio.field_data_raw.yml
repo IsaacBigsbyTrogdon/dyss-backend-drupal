@@ -1,0 +1,19 @@
+uuid: a9b30416-4c05-4318-a9f5-e02f640841ac
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_data_raw
+    - node.type.audio
+id: node.audio.field_data_raw
+field_name: field_data_raw
+entity_type: node
+bundle: audio
+label: 'data raw'
+description: ''
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: string_long

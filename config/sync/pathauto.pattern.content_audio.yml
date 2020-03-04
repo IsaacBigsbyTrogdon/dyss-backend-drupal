@@ -1,0 +1,22 @@
+uuid: 9c3ed4d4-a24a-4ca5-ae32-4aa65927b0f4
+langcode: en
+status: true
+dependencies:
+  module:
+    - node
+id: content_audio
+label: 'Content - audio'
+type: 'canonical_entities:node'
+pattern: 'audio/[node:title]'
+selection_criteria:
+  2f51b841-caf7-4455-8b51-151565f6b130:
+    id: node_type
+    bundles:
+      audio: audio
+    negate: false
+    context_mapping:
+      node: node
+    uuid: 2f51b841-caf7-4455-8b51-151565f6b130
+selection_logic: and
+weight: -5
+relationships: {  }
