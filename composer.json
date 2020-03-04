@@ -2,65 +2,34 @@
     "name": "drupal-composer/drupal-project",
     "description": "Project template for Drupal 8 projects with composer",
     "type": "project",
-    "license": "GPL-2.0-or-later",
-    "authors": [{
-        "name": "",
-        "role": ""
-    }],
-    "repositories": [{
-        "type": "composer",
-        "url": "https://packages.drupal.org/8"
-    },
+    "license": "GPL-2.0+",
+    "authors": [
         {
-            "type": "git",
-            "url": "https://github.com/loomgmbh/module-loom_preprocess.git"
-        },
-        {
-            "type": "git",
-            "url": "https://github.com/loomgmbh/module-loom_clean_deploy.git"
-        },
-        {
-            "type": "git",
-            "url": "https://github.com/loomgmbh/module-loom_config.git"
-        },
-        {
-            "type": "git",
-            "url": "https://github.com/loomgmbh/module-loom_import.git"
-        }, {
-            "type": "package",
-            "package": {
-                "name": "loomgmbh/loom_cover_image",
-                "version": "8.1.1.0",
-                "type": "drupal-module",
-                "source": {
-                    "url": "https://github.com/loomgmbh/module-loom_cover_image.git",
-                    "type": "git",
-                    "reference": "8.1.1.0"
-                },
-                "require": {
-                    "composer/installers": "~1.0"
-                }
-            }
-        },
+            "name": "",
+            "role": ""
+        }
+    ],
+    "repositories": [
         {
             "type": "composer",
-            "url": "https://asset-packagist.org"
+            "url": "https://packages.drupal.org/8"
         }
     ],
     "require": {
         "composer/installers": "^1.2",
         "cweagans/composer-patches": "^1.6",
-        "drupal/admin_toolbar": "^1.26",
+        "drupal/admin_toolbar": "~2.0",
         "drupal/audiofield": "^1.9",
+        "drupal/basic": "^2.0",
         "drupal/console": "^1.0.2",
-        "drupal/core": "^8.7",
+        "drupal/core": "^8.8.2",
         "drupal/entity_clone": "^1.0@beta",
-        "drupal/jsonapi": "^2.4",
-        "drupal/jsonapi_extras": "^3.8",
-        "drupal/pathauto": "^1.4",
+        "drupal/jsonapi_extras": "^3.13",
+        "drupal/pathauto": "^1.6",
         "drupal/permissions_filter": "^1.0",
         "drupal/recaptcha": "^2.4",
         "drupal/select2": "^1.1",
+        "drupal/shield": "^1.2",
         "drush/drush": "^9.0.0",
         "mremi/url-shortener": "^2.1",
         "npm-asset/select2": "^4.0",
